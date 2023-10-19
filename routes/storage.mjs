@@ -6,11 +6,11 @@ import multer from "multer";
 import { format } from "date-fns";
 
 const storage = new Storage({
-  projectId: process.env.GCLOUD_PROJECT_ID,
-  keyFilename: process.env.GCLOUD_KEYFILE_PATH,
+  projectId: "bustling-surf-398905",
+  keyFilename: "bustling-surf-398905-cd0a4fd7ec7c.json",
 });
 const router = express.Router();
-const bucket = storage.bucket(process.env.GCLOUD_BUCKET_NAME);
+const bucket = storage.bucket("tamc_advertisements");
 //GET FILES
 const upload = multer({ storage: multer.memoryStorage() });
 
