@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "bustling-surf-398905",
+  "private_key_id": "cd0a4fd7ec7c452b4aadf6d0414eeab7ddb30a5b",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCjSSV86ArIRprW\nP8ffittdggP0UuaecSleyIgTieuNb8W+iAZy5gZxq5/UqmdfC9QTYi1Blvk8J2Jy\n5YBihsoW2imCiJ26ywzHBGn/dg+Huz71NtuqWNb51tJ1woSYJc9eKvQIaKEJ6Xas\nlMVKznaYFv2T0eqZniiDaL9SsZ8vlTJmqkW9/tjbKfJsvKylHKKp645oSWF8G4OT\nOSovpHOCKnu5uM8WtgarjiPi5T4/F1c+NJyKNQTJMErjRlcu2jfvZSpGLo9RJma6\niN8ILqJauNCywSNyvw8+KJYqbVGj77Ws0NGoYrbGDQAD25NQaXm1CUWaBEYsr0TT\n40NC5bgvAgMBAAECggEAO7zQhrx76V6PWi/WZ22tKK4e1T2ZGsFKwd76ja9pKoMI\nZNbuCQ4nsGF6JXs8O1Uf/wFtji/2OfAsv90/1Yv7llW1Vwi1L/gGUi9GukvOjblO\n5LZvsggzig7yS1vhV6qJjamIQyVIOVCc9rGs5lvXnnfWyMRFIHNw3fat/Ep4cxb8\nFCPg2QFeEw1Y6x0oP8a9Ju92IIbGQr2IjaFOs8Q/ftQFvttdTnphC92Dwd8iWGVR\naIt5LR9hvO+LwvUGQEW/baQBzZD17yioNz/bx+ZQ+QxylssbtatpgWdNxJz4XQLX\nHOUZri0t5M3LRF+a8Sjagdra7GGENB02XRmWNUdOxQKBgQDYdiLiDZqtoE4hWAbx\nwR47+uqHWv1jhgEF7Vy7+C6CX/+pOjmzd9+Gi7eanVZUsf1NpY80Ke1nQRtKlsTb\nf3QzFqTqpizXad5L7EYZABV9t+jy3AJgX3tmz6PxEo4P4NqQvlZKnYzXUBrp+Jag\nKxEXpp3QMpr/2xr0W47pP4kgYwKBgQDBHHtQT7EPLpYNf3AFRKSnw57NfeChaXH9\n9V1IqLlhlClPh0YMMDiPFJVtArW/fmGtfzQsqynCHmF+y8eEetybihfjDxay69m5\n2QclmC35vJvXP50eTY4C9E30cPAnV3n00WRRe6FK67kUiAslVLNRe7OZ16pxDA+/\nV+B9qlzExQKBgCJVYqUOWVlu0tWxG7De28fRvb9obEaL67+f7ZSXAfGF/ow+Awb3\nXYn+wUmR6S6X6MCXIQa6G8DD7+s9zM2wAqNT1Sau4u/sB+ls+ZVfkQkW0akrwmi8\n3FrrVmqXcdcM6D4LIq7FHKDOQOaZmnKfQh/JOsDaNgGdJEJb/2f5vutXAoGAFbgp\nWmgMJwP7VntN0xncVw4Wb1BIEn90lbaiDkkDyKjMWKiDRV2rDtSm1cLnRClnvQbA\njIGXycB3ALbUst7KryfB9gS9bdQ/AbsaJa1PBnajJHuAJWddoJFvrx2AtTwOeG2Q\nleWMx4tpnpiKgGFdZb2+/n+WKO7NWpz8n8Wod20CgYBjrkMxmnSE3D5D6T1UuDkU\nHGwGnsjcbXjRZ9IOsgML6R9nqbXsYz7sQWYvHLpO/+WK7OlG2/PekP2Ss7SmCPoN\n/qm5Q3GzwbkRWdeQT391tAs2lRilLPFGVu3tiGMEjVqPK3hot1UcXeZlU6rHsD8q\nsANG+X74qSg7stkC2exwuQ==\n-----END PRIVATE KEY-----\n",
+  "client_email": "taptab-developer@bustling-surf-398905.iam.gserviceaccount.com",
+  "client_id": "112809940033836224545",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/taptab-developer%40bustling-surf-398905.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
