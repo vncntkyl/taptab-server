@@ -106,4 +106,20 @@ router.delete("/:id", async (req, res) => {
 
   res.send(result).status(200);
 });
+
+router.post("/log/:id", async (req, res) => {
+  const query = { _id: new ObjectId(req.params.id) };
+  const data = req.body;
+  delete data._id;
+  const updates = {
+    $set: {
+      last_location: {
+        long: data.long,
+        lat: data.lat,
+      },
+    },
+  };
+  let result = await collection.updateOne(query, updates);
+  res.send(result).status(204);
+});
 export default router;
