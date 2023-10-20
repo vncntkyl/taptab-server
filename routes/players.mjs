@@ -122,4 +122,21 @@ router.post("/log/:id", async (req, res) => {
   let result = await collection.updateOne(query, updates);
   res.send(result).status(204);
 });
+
+router.get("/ping", async (req, res) => {
+  const uniqueID = new ObjectId();
+
+  res.status(200).send({ _id: uniqueID });
+});
+router.post("/ping/:id", async (req, res) => {
+  const uniqueID = req.params.id;
+  const tabData = req.body; // Use query parameter to get tabData
+
+  if (uniqueID) {
+    res.send(tabData).status(200);
+  }else{
+    console.log("disconnected");
+  }
+});
+
 export default router;
