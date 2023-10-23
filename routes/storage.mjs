@@ -197,4 +197,39 @@ router.post("/upload", upload.array("files", 5), async (req, res) => {
     res.status(500).send(error);
   }
 });
+router.patch("/:id", async (req, res) => {
+  try {
+    let collection = db.collection("playlist");
+    const data = req.body;
+    const { fileName, thumbnail_src } = data;
+    const fileNames = [fileName, thumbnail_src];
+
+    await Promise.all(
+      fileNames.map(async (file) => {
+        try {
+          await bucket.file(file).delete();
+          console.log(`File ${file} deleted successfully.`);
+        } catch (error) {
+          console.error(`Error deleting file ${file}: ${error.message}`);
+        }
+      })
+    );
+    let result = await collection.updateMany(
+      {},
+      {
+        $pull: { media_items: req.params.id },
+      }
+    );
+
+    if (result.acknowledged) {
+      const query = { _id: new ObjectId(req.params.id) };
+      collection = db.collection("media");
+      result = await collection.deleteOne(query);
+      res.send(result).status(200);
+    }
+  } catch (error) {
+    console.error("Error uploading: ", error);
+    res.status(500).send(error);
+  }
+});
 export default router;
