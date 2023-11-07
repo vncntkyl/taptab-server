@@ -232,4 +232,21 @@ router.patch("/:id", async (req, res) => {
     res.status(500).send(error);
   }
 });
+router.patch("/metrics/:id", async (req, res) => {
+  try {
+    let collection = db.collection("media");
+    let views = req.body.views;
+    let id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const updates = {
+      $inc: {
+        views: views,
+      },
+    };
+    const results = await collection.updateOne(query, updates);
+    res.send(results).status(200);
+  } catch (e) {
+    res.send(e).status(400);
+  }
+});
 export default router;
