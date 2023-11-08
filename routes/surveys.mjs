@@ -10,7 +10,51 @@ router.get("/", async (req, res) => {
     let query = {
       status: { $not: { $eq: "deleted" } },
     };
-    let results = await collection.find(query).toArray();
+    let results = await collection
+      .aggregate([
+        {
+          $lookup: {
+            from: "surveyResponses",
+            localField: "_id",
+            foreignField: "survey_id",
+            as: "responses",
+          },
+        },
+        {
+          $addFields: {
+            responseCount: {
+              $size: "$responses",
+            },
+          },
+        },
+        {
+          $project: {
+            responses: 0,
+          },
+        },
+        {
+          $match: query,
+        },
+      ])
+      .toArray();
+    res.send(results).status(200);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Server Error");
+  }
+});
+router.get("/responses/:id", async (req, res) => {
+  let collection = db.collection("surveyResponses");
+  try {
+    let query = {
+      survey_id: { $eq: new ObjectId(req.params.id) },
+    };
+    let results = await collection
+      .find(query)
+      .project({
+        survey_id: 0,
+      })
+      .toArray();
     res.send(results).status(200);
   } catch (error) {
     console.error(error);
@@ -47,5 +91,15 @@ router.delete("/:id", async (req, res) => {
   let result = await collection.updateOne(query, updates);
 
   res.send(result).status(200);
+});
+router.post("/app", async (req, res) => {
+  let collection = db.collection("surveyResponses");
+  const data = req.body;
+  const post = {
+    survey_id: new ObjectId(data._id),
+    response: [...data.data],
+  };
+  let result = await collection.insertOne(post);
+  res.send(result).status(204);
 });
 export default router;
