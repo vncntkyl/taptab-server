@@ -162,7 +162,7 @@ router.post("/upload", upload.array("files", 5), async (req, res) => {
         stream.end(file.buffer);
         await new Promise((resolve) => stream.on("finish", resolve));
       });
-    } else if (data.type === "video") {
+    } else if (data.type === "video" || data.type === "link") {
       if (!files || files.length === 0) {
         return res.status(400).send("No files uploaded.");
       }
@@ -207,6 +207,7 @@ router.patch("/:id", async (req, res) => {
     await Promise.all(
       fileNames.map(async (file) => {
         try {
+          if (!file) return;
           await bucket.file(file).delete();
           console.log(`File ${file} deleted successfully.`);
         } catch (error) {
