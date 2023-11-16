@@ -233,21 +233,32 @@ router.patch("/:id", async (req, res) => {
     res.status(500).send(error);
   }
 });
-router.patch("/metrics/:id", async (req, res) => {
+router.patch("/analytics/:id", async (req, res) => {
   try {
-    let collection = db.collection("media");
-    let views = req.body.views;
+    let collection = db.collection("analytics");
+    let data = req.body.data;
     let id = req.params.id;
-    const query = { _id: new ObjectId(id) };
+    const query = { media_id: new ObjectId(id) };
     const updates = {
-      $inc: {
-        views: views,
-      },
+      $push: { logs: { $each: data, $position: 0 } },
     };
+
     const results = await collection.updateOne(query, updates);
     res.send(results).status(200);
   } catch (e) {
     res.send(e).status(400);
+  }
+});
+
+router.get("/analytics/", async (req, res) => {
+  try {
+    let collection = db.collection("analytics");
+    let results = await collection.find({}).toArray();
+
+    res.send(results).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
   }
 });
 export default router;
