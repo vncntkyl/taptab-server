@@ -55,6 +55,40 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/:id", async (req, res) => {
+  try {
+    let collection = db.collection("staticAds");
+    let result = await collection.findOne({
+      _id: new ObjectId(req.params.id),
+    });
+    let [files] = await bucket.getFiles();
+    const items = [];
+
+    const file = files.find((file) => {
+      if (file.metadata.metadata) {
+        return (
+          file.metadata.metadata.dbID === req.params.id &&
+          file.name.startsWith("staticAds")
+        );
+      }
+    });
+
+    const data = {
+      _id: file.metadata.metadata.dbID,
+      _urlID: file.id,
+      fileName: file.name,
+      timeCreated: file.metadata.timeCreated,
+      timeUpdated: file.metadata.updated,
+      ...result,
+    };
+
+    res.send(data).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
+
 router.post("/create", upload.single("file"), async (req, res) => {
   try {
     const image = req.file;
