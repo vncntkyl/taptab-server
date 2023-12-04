@@ -62,8 +62,6 @@ router.get("/:id", async (req, res) => {
       _id: new ObjectId(req.params.id),
     });
     let [files] = await bucket.getFiles();
-    const items = [];
-
     const file = files.find((file) => {
       if (file.metadata.metadata) {
         return (
@@ -81,7 +79,6 @@ router.get("/:id", async (req, res) => {
       timeUpdated: file.metadata.updated,
       ...result,
     };
-
     res.send(data).status(200);
   } catch (error) {
     console.error("Error listing bucket contents:", error);
@@ -90,6 +87,40 @@ router.get("/:id", async (req, res) => {
 });
 
 router.post("/create", upload.single("file"), async (req, res) => {
+  try {
+    const image = req.file;
+    const data = JSON.parse(req.body.adData);
+    let collection = db.collection("staticAds");
+    let result = await collection.insertOne(data);
+    if (!image || image.length === 0) {
+      return res.status(400).send("No image uploaded.");
+    }
+
+    image.originalname = "staticAds/" + image.originalname;
+    const fileUpload = bucket.file(image.originalname);
+    const stream = fileUpload.createWriteStream({
+      metadata: {
+        contentType: image.mimetype,
+        metadata: {
+          dbID: result.insertedId,
+        },
+      },
+    });
+    stream.on("error", (error) => {
+      res.status(400).send(error);
+      console.error(`Error uploading ${image.originalname}:`, error);
+    });
+    // Upload the file
+    stream.end(image.buffer);
+    await new Promise((resolve) => stream.on("finish", resolve));
+
+    res.status(200).send("Created new static ad");
+  } catch (error) {
+    console.error("Error uploading: ", error);
+    res.status(500).send(error);
+  }
+});
+router.post("/update", async (req, res) => {
   try {
     const image = req.file;
     const data = JSON.parse(req.body.adData);

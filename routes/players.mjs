@@ -17,6 +17,20 @@ router.get("/", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+router.get("/taptab/:id", async (req, res) => {
+  try {
+    let query = {
+      status: { $not: { $eq: "deleted" } },
+    };
+    const result = await collection.findOne({
+      _id: new ObjectId(req.params.id),
+    });
+    res.send(result).status(200);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Server Error");
+  }
+});
 
 router.post("/", async (req, res) => {
   const data = req.body;
@@ -35,7 +49,7 @@ router.post("/login", async (req, res) => {
       if (result.status === "ready") {
         const response = await collection.updateOne(
           { _id: new ObjectId(result._id) },
-          { $set: { status: "connected", isOnline: true } }
+          { $set: { status: "connected", isOnline: true, deviceIP: data.ip } }
         );
         if (response.acknowledged) {
           const playerData = await collection.findOne({
@@ -54,35 +68,10 @@ router.post("/login", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
-router.post("/relogin", async (req, res) => {
-  const data = req.body;
-  try {
-    const result = await collection.findOne({
-      status: "connected",
-      "driver.plate_number": data.plateNumber,
-      access_code: data.key,
-    });
-
-    if (result) {
-      const response = await collection.updateOne(
-        { _id: new ObjectId(result._id) },
-        { $set: { status: "connected", isOnline: true } }
-      );
-      if (response.acknowledged) {
-        const playerData = await collection.findOne({
-          _id: new ObjectId(result._id),
-        });
-        res.status(200).send(playerData);
-      }
-    } else {
-      res.status(200).send("Account has not been previously logged in.");
-    }
-  } catch (error) {
-    console.error("Error during login:", error);
-    res.status(500).send("Server Error");
-  }
+router.get("/get-ip", async (req, res) => {
+  const ipAddress = req.ip || req.socket.remoteAddress;
+  res.send(ipAddress);
 });
-
 router.patch("/:id", async (req, res) => {
   const query = { _id: new ObjectId(req.params.id) };
   const data = req.body;
@@ -134,7 +123,7 @@ router.post("/ping/:id", async (req, res) => {
 
   if (uniqueID) {
     res.send(tabData).status(200);
-  }else{
+  } else {
     console.log("disconnected");
   }
 });
