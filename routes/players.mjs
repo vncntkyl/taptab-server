@@ -19,12 +19,12 @@ router.get("/", async (req, res) => {
 });
 router.get("/taptab/:id", async (req, res) => {
   try {
-    let query = {
-      status: { $not: { $eq: "deleted" } },
-    };
-    const result = await collection.findOne({
-      _id: new ObjectId(req.params.id),
-    });
+    const result = await collection.findOne(
+      {
+        _id: new ObjectId(req.params.id),
+      },
+      { projection: { isOnline: 0 } }
+    );
     res.send(result).status(200);
   } catch (error) {
     console.error(error);
@@ -49,7 +49,15 @@ router.post("/login", async (req, res) => {
       if (result.status === "ready") {
         const response = await collection.updateOne(
           { _id: new ObjectId(result._id) },
-          { $set: { status: "connected", isOnline: true, deviceIP: data.ip } }
+          {
+            $set: {
+              status: "connected",
+              isOnline: [
+                new Date().toLocaleString("en-PH", { timeZone: "Asia/Manila" }),
+              ],
+              deviceIP: data.ip,
+            },
+          }
         );
         if (response.acknowledged) {
           const playerData = await collection.findOne({
@@ -111,20 +119,27 @@ router.post("/log/:id", async (req, res) => {
   let result = await collection.updateOne(query, updates);
   res.send(result).status(204);
 });
-
-router.get("/ping", async (req, res) => {
-  const uniqueID = new ObjectId();
-
-  res.status(200).send({ _id: uniqueID });
-});
-router.post("/ping/:id", async (req, res) => {
+router.get("/ping/:id", async (req, res) => {
   const uniqueID = req.params.id;
-  const tabData = req.body; // Use query parameter to get tabData
+  try {
+    const result = await collection.findOne({ _id: new ObjectId(uniqueID) });
 
-  if (uniqueID) {
-    res.send(tabData).status(200);
-  } else {
-    console.log("disconnected");
+    if (result) {
+      const response = await collection.updateOne(
+        { _id: new ObjectId(result._id) },
+        {
+          $set: {
+            isOnline: new Date().toLocaleString("en-PH", {
+              timeZone: "Asia/Manila",
+            }),
+          },
+        }
+      );
+      res.send(response).status(200);
+    }
+  } catch (error) {
+    console.error("Error during login:", error);
+    res.status(500).send("Server Error");
   }
 });
 
