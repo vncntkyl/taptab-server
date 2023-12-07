@@ -157,7 +157,7 @@ router.post("/update", async (req, res) => {
 router.put("/analytics/:id", async (req, res) => {
   try {
     let collection = db.collection("staticAds");
-    let data = req.body;
+    let data = JSON.parse(req.body);
     let id = req.params.id;
     const query = { _id: new ObjectId(id) };
     const updates = {
@@ -165,7 +165,7 @@ router.put("/analytics/:id", async (req, res) => {
     };
 
     const results = await collection.updateOne(query, updates);
-    console.log(results);
+    console.log(data);
     res.send(results).status(200);
   } catch (e) {
     res.send(e).status(400);
