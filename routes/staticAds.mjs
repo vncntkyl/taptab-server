@@ -166,7 +166,7 @@ router.put("/analytics/:id", async (req, res) => {
 
     const results = await collection.updateOne(query, updates);
     console.log(data);
-    res.send(results).status(200);
+    res.send(data).status(200);
   } catch (e) {
     res.send(e).status(400);
   }
