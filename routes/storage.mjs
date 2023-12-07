@@ -73,6 +73,28 @@ router.get("/", async (req, res) => {
     res.status(500).send(error);
   }
 });
+router.get("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    let collection = db.collection("media");
+    let results = await collection.find({}).toArray();
+    let [files] = await bucket.getFiles();
+
+    const mediaFiles = files.filter((file) => {
+      // Check if dbID is defined before comparing
+      if (file.metadata.metadata.dbID && file.metadata.metadata.dbID === id) {
+        return true;
+      }
+      return false;
+    });
+
+    res.send(mediaFiles).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
+
 router.get("/playlist/", async (req, res) => {
   try {
     let collection = db.collection("playlist");
