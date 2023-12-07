@@ -67,7 +67,6 @@ router.get("/", async (req, res) => {
           library.push(unmatchedResult);
         }
       });
-
     res.send(library).status(200);
   } catch (error) {
     console.error("Error listing bucket contents:", error);

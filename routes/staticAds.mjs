@@ -154,6 +154,23 @@ router.post("/update", async (req, res) => {
     res.status(500).send(error);
   }
 });
+router.put("/analytics/:id", async (req, res) => {
+  try {
+    let collection = db.collection("staticAds");
+    let data = req.body.data;
+    let id = req.params.id;
+    // const query = { media_id: new ObjectId(id) };
+    // const updates = {
+    //   $push: { views: { $each: data, $position: 0 } },
+    // };
+
+    // const results = await collection.updateOne(query, updates);
+    console.log(data);
+    res.send(data).status(200);
+  } catch (e) {
+    res.send(e).status(400);
+  }
+});
 router.patch("/:id", upload.single("file"), async (req, res) => {
   try {
     const adData = JSON.parse(req.body.adData);
@@ -213,6 +230,7 @@ router.patch("/:id", upload.single("file"), async (req, res) => {
     res.status(500).send(error);
   }
 });
+
 router.delete("/:id", async (req, res) => {
   const collection = db.collection("staticAds");
   const query = { _id: new ObjectId(req.params.id) };
