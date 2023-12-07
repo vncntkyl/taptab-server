@@ -157,7 +157,7 @@ router.post("/update", async (req, res) => {
 router.put("/analytics/:id", async (req, res) => {
   try {
     let collection = db.collection("staticAds");
-    let data = req.body.data;
+    let data = req.body;
     let id = req.params.id;
     // const query = { media_id: new ObjectId(id) };
     // const updates = {
