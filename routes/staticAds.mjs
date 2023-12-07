@@ -159,7 +159,7 @@ router.put("/analytics/:id", async (req, res) => {
     let collection = db.collection("staticAds");
     let data = req.body;
     let id = req.params.id;
-    const query = { media_id: new ObjectId(id) };
+    const query = { _id: new ObjectId(id) };
     const updates = {
       $push: { views: { $each: data, $position: 0 } },
     };
