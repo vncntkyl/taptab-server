@@ -73,22 +73,108 @@ router.get("/", async (req, res) => {
     res.status(500).send(error);
   }
 });
-router.get("/:id", async (req, res) => {
+router.get("/media/:id", async (req, res) => {
   try {
     const id = req.params.id;
     let collection = db.collection("media");
-    let results = await collection.find({}).toArray();
+    let result = await collection.findOne({ _id: new ObjectId(id) });
+    collection = db.collection("analytics");
+    let analytics = await collection.findOne({ media_id: new ObjectId(id) });
     let [files] = await bucket.getFiles();
 
-    const mediaFiles = files.filter((file) => {
+    files = files.filter((file) => !file.name.startsWith("staticAds"));
+    files = files.filter((file) => {
       // Check if dbID is defined before comparing
-      if (file.metadata.metadata.dbID && file.metadata.metadata.dbID === id) {
-        return true;
+      if (file.metadata) {
+        if (typeof file.metadata.metadata === "object") {
+          return file.metadata.metadata.dbID === id;
+        }
       }
       return false;
     });
+    const mediaItem = files.find((file) => !file.name.startsWith("thumbnail"));
+    const mediaThumbnail = files.find((file) =>
+      file.name.startsWith("thumbnail")
+    );
+    let item = {};
+    if (result.type === "link") {
+      item = {
+        _id: result._id,
+        _urlID: result.link,
+        category: result.category,
+        name: result.name,
+        type: result.type,
+        duration: result.videoDuration,
+        usage: result.usage,
+        timeCreated: result.timeCreated,
+        timeUpdated: result.updated,
+        dimensions: {
+          height: result.height,
+          width: result.width,
+        },
+        thumbnail: {
+          fileName: mediaThumbnail.name,
+          contentType: mediaThumbnail.metadata.contentType,
+          size: mediaThumbnail.metadata.size,
+          timeCreated: mediaThumbnail.metadata.timeCreated,
+          timeUpdated: mediaThumbnail.metadata.updated,
+        },
+        logs: { ...analytics },
+      };
+    } else if (result.type === "image") {
+      item = {
+        _id: result._id,
+        _urlID: mediaItem.id,
+        fileName: mediaItem.name,
+        category: result.category,
+        name: result.name,
+        type: result.type,
+        duration: result.videoDuration,
+        usage: result.usage,
+        dimensions: {
+          height: result.height,
+          width: result.width,
+        },
+        contentType: mediaItem.metadata.contentType,
+        size: mediaItem.metadata.size,
+        bucket: mediaItem.metadata.bucket,
+        timeCreated: mediaItem.metadata.timeCreated,
+        timeUpdated: mediaItem.metadata.updated,
+        logs: { ...analytics },
+      };
+    } else {
+      item = {
+        _id: result._id,
+        _urlID: mediaItem.id,
+        fileName: mediaItem.name,
+        category: result.category,
+        name: result.name,
+        type: result.type,
+        duration: result.videoDuration,
+        usage: result.usage,
+        dimensions: {
+          height: result.height,
+          width: result.width,
+        },
+        contentType: mediaItem.metadata.contentType,
+        size: mediaItem.metadata.size,
+        bucket: mediaItem.metadata.bucket,
+        timeCreated: mediaItem.metadata.timeCreated,
+        timeUpdated: mediaItem.metadata.updated,
+        thumbnail: {
+          fileName: mediaThumbnail.name,
+          contentType: mediaThumbnail.metadata.contentType,
+          size: mediaThumbnail.metadata.size,
+          timeCreated: mediaThumbnail.metadata.timeCreated,
+          timeUpdated: mediaThumbnail.metadata.updated,
+        },
+        logs: { ...analytics },
+      };
+    }
 
-    res.send(mediaFiles).status(200);
+    // console.log(item);
+
+    res.send(item).status(200);
   } catch (error) {
     console.error("Error listing bucket contents:", error);
     res.status(500).send(error);
