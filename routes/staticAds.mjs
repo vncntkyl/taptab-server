@@ -114,7 +114,7 @@ router.post("/create", upload.single("file"), async (req, res) => {
     stream.end(image.buffer);
     await new Promise((resolve) => stream.on("finish", resolve));
 
-    res.status(200).send("Created new static ad");
+    res.status(200).send({ acknowledged: true });
   } catch (error) {
     console.error("Error uploading: ", error);
     res.status(500).send(error);
