@@ -101,7 +101,24 @@ router.get("/analytics/:id", async (req, res) => {
     res.status(500).send(error);
   }
 });
+router.put("/analytics/:id", async (req, res) => {
+  try {
+    let collection = db.collection("staticAds");
+    let data = req.body;
+    let id = req.params.id;
+    console.log(data);
 
+    const query = { _id: new ObjectId(id) };
+    const updates = {
+      $push: { views: data },
+    };
+
+    const results = await collection.updateOne(query, updates);
+    res.send(results).status(200);
+  } catch (e) {
+    res.send(e).status(400);
+  }
+});
 router.post("/create", upload.single("file"), async (req, res) => {
   try {
     const image = req.file;
