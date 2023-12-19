@@ -96,22 +96,24 @@ router.get("/media/:id", async (req, res) => {
     const mediaThumbnail = files.find((file) =>
       file.name.startsWith("thumbnail")
     );
-    let item = {};
+    let item = {
+      _id: result._id,
+      category: result.category,
+      name: result.name,
+      type: result.type,
+      duration: result.videoDuration,
+      usage: result.usage,
+      dimensions: {
+        height: result.height,
+        width: result.width,
+      },
+    };
     if (result.type === "link") {
       item = {
-        _id: result._id,
+        ...item,
         _urlID: result.link,
-        category: result.category,
-        name: result.name,
-        type: result.type,
-        duration: result.videoDuration,
-        usage: result.usage,
         timeCreated: result.timeCreated,
         timeUpdated: result.updated,
-        dimensions: {
-          height: result.height,
-          width: result.width,
-        },
         thumbnail: {
           fileName: mediaThumbnail.name,
           contentType: mediaThumbnail.metadata.contentType,
@@ -123,18 +125,9 @@ router.get("/media/:id", async (req, res) => {
       };
     } else if (result.type === "image") {
       item = {
-        _id: result._id,
+        ...item,
         _urlID: mediaItem.id,
         fileName: mediaItem.name,
-        category: result.category,
-        name: result.name,
-        type: result.type,
-        duration: result.videoDuration,
-        usage: result.usage,
-        dimensions: {
-          height: result.height,
-          width: result.width,
-        },
         contentType: mediaItem.metadata.contentType,
         size: mediaItem.metadata.size,
         bucket: mediaItem.metadata.bucket,
@@ -144,18 +137,9 @@ router.get("/media/:id", async (req, res) => {
       };
     } else {
       item = {
-        _id: result._id,
+        ...item,
         _urlID: mediaItem.id,
         fileName: mediaItem.name,
-        category: result.category,
-        name: result.name,
-        type: result.type,
-        duration: result.videoDuration,
-        usage: result.usage,
-        dimensions: {
-          height: result.height,
-          width: result.width,
-        },
         contentType: mediaItem.metadata.contentType,
         size: mediaItem.metadata.size,
         bucket: mediaItem.metadata.bucket,

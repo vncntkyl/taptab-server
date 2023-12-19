@@ -3,6 +3,7 @@ import db from "../db/conn.mjs";
 import { ObjectId } from "mongodb";
 import { Storage } from "@google-cloud/storage";
 import multer from "multer";
+import fs from "fs";
 
 const storage = new Storage({
   projectId: "bustling-surf-398905",
@@ -55,7 +56,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/analytics/:id", async (req, res) => {
   try {
     let collection = db.collection("staticAds");
     let result = await collection.findOne({
@@ -79,7 +80,22 @@ router.get("/:id", async (req, res) => {
       timeUpdated: file.metadata.updated,
       ...result,
     };
-    res.send(data).status(200);
+    const log = {
+      action: "scanned",
+      date: new Date(new Date().toISOString()),
+    };
+    const query = { _id: new ObjectId(req.params.id) };
+    const updates = {
+      $push: { views: log },
+    };
+
+    const results = await collection.updateOne(query, updates);
+
+    if (results.acknowledged) {
+      res.send(data).status(200);
+    } else {
+      res.send("An error occured").status(404);
+    }
   } catch (error) {
     console.error("Error listing bucket contents:", error);
     res.status(500).send(error);
@@ -152,24 +168,6 @@ router.post("/update", async (req, res) => {
   } catch (error) {
     console.error("Error uploading: ", error);
     res.status(500).send(error);
-  }
-});
-router.put("/analytics/:id", async (req, res) => {
-  try {
-    let collection = db.collection("staticAds");
-    let data = req.body;
-    let id = req.params.id;
-    console.log(data);
-
-    const query = { _id: new ObjectId(id) };
-    const updates = {
-      $push: { views: data },
-    };
-
-    const results = await collection.updateOne(query, updates);
-    res.send(results).status(200);
-  } catch (e) {
-    res.send(e).status(400);
   }
 });
 router.patch("/:id", upload.single("file"), async (req, res) => {
