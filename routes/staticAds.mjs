@@ -101,6 +101,94 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/:id", async (req, res) => {
+  try {
+    let collection = db.collection("staticAds");
+    let results = await collection
+      .find({ status: { $not: { $eq: "deleted" } } })
+      .toArray();
+    let bucket = storage.bucket("tamc_advertisements");
+    let [files] = await bucket.getFiles();
+    const items = [];
+
+    files = files.filter((file) => file.name.startsWith("staticAds"));
+
+    files.forEach((file) => {
+      if (file.metadata.contentType === "text/plain") return;
+      items.push({
+        _id: file.metadata.metadata.dbID,
+        _urlID: file.id,
+        fileName: file.name,
+        timeCreated: file.metadata.timeCreated,
+        timeUpdated: file.metadata.updated,
+      });
+    });
+
+    bucket = storage.bucket("static-ad-analytics");
+    [files] = await bucket.getFiles();
+
+    let analytics = [];
+    // Use Promise.all to wait for all streams to complete
+    await Promise.all(
+      files.map(async (file) => {
+        const stream = file.createReadStream();
+        let data = "";
+
+        // Wrap the stream reading in a Promise
+        const readStreamPromise = new Promise((resolve, reject) => {
+          stream.on("data", (chunk) => {
+            data += chunk;
+          });
+
+          stream.on("end", () => {
+            const existingData = JSON.parse(data);
+            analytics.push({
+              _id: file.name.split(".")[0],
+              views: existingData,
+            });
+            resolve(); // Resolve the Promise when the stream is complete
+          });
+
+          stream.on("error", (error) => {
+            reject(error); // Reject the Promise on error
+          });
+        });
+
+        await readStreamPromise; // Wait for the stream to complete before moving to the next file
+      })
+    );
+
+    const library = results.map((result) => {
+      const match = items.find((item) => item._id == result._id);
+      if (match) {
+        return { ...result, ...match };
+      }
+      return result;
+    });
+
+    const libraryWithAnalytics = library.map((item) => {
+      const analytic = analytics.find((log) => log._id == item._id);
+
+      if (analytic) {
+        return {
+          ...item,
+          views: analytic.views,
+        };
+      } else {
+        return {
+          ...item,
+          views: [],
+        };
+      }
+    });
+
+    const item = libraryWithAnalytics.find((item) => item._id == req.params.id);
+    res.send(item).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
 router.get("/analytics/:id", async (req, res) => {
   try {
     let collection = db.collection("staticAds");
@@ -163,62 +251,7 @@ router.get("/analytics/:id", async (req, res) => {
     res.status(500).send(error);
   }
 });
-// router.get("/:id", async (req, res) => {
-//   try {
-//     const newLog = req.body;
-//     let id = req.params.id;
-//     const bucket = storage.bucket("static-ad-analytics");
 
-//     const file = bucket.file(`${id}.json`);
-
-//     file.exists().then(async ([exists]) => {
-//       if (exists) {
-//         const readStream = file.createReadStream();
-
-//         let data = "";
-
-//         readStream.on("data", (chunk) => {
-//           data += chunk;
-//         });
-
-//         readStream.on("end", async () => {
-//           console.log(data);
-//           const existingData = JSON.parse(data);
-//           existingData.push(newLog);
-//           const updatedJsonString = JSON.stringify(existingData, null, 2);
-
-//           const stream = file.createWriteStream({
-//             metadata: {
-//               contentType: "application/json",
-//             },
-//           });
-
-//           // Handle errors during the upload
-//           stream.on("error", (error) => {
-//             res
-//               .status(400)
-//               .send({ error: "Error during upload", details: error });
-//             console.error(`Error uploading ${id}.json:`, error);
-//           });
-
-//           // Handle the completion of the upload
-//           stream.on("finish", () => {
-//             res.status(200).send({
-//               acknowledged: true,
-//               modified: "full",
-//             });
-//           });
-//           stream.end(updatedJsonString);
-//         });
-//       } else {
-//         res.send("Error creating new file").status(404);
-//       }
-//     });
-//   } catch (error) {
-//     console.error("Error listing bucket contents:", error);
-//     res.status(500).send(error);
-//   }
-// });
 router.put("/analytics/:id", async (req, res) => {
   try {
     const newLog = req.body;
