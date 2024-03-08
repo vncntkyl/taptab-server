@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { Storage } from "@google-cloud/storage";
 import multer from "multer";
 import { format } from "date-fns";
+import { colllections } from "./collections.mjs";
 
 const storage = new Storage({
   projectId: "bustling-surf-398905",
@@ -20,7 +21,11 @@ router.get("/", async (req, res) => {
     let results = await collection.find({}).toArray();
     let [files] = await bucket.getFiles();
     const items = [];
-    files = files.filter((file) => !file.name.startsWith("staticAds"));
+    files = files.filter(
+      (file) =>
+        !file.name.startsWith("staticAds") &&
+        !file.name.startsWith("geoTaggedAds")
+    );
     files.forEach((file) => {
       if (file.metadata.contentType === "text/plain") return;
       items.push({
@@ -82,7 +87,11 @@ router.get("/media/:id", async (req, res) => {
     let analytics = await collection.findOne({ media_id: new ObjectId(id) });
     let [files] = await bucket.getFiles();
 
-    files = files.filter((file) => !file.name.startsWith("staticAds"));
+    files = files.filter(
+      (file) =>
+        !file.name.startsWith("staticAds") &&
+        !file.name.startsWith("geoTaggedAds")
+    );
     files = files.filter((file) => {
       // Check if dbID is defined before comparing
       if (file.metadata) {
@@ -349,6 +358,68 @@ router.get("/analytics/", async (req, res) => {
     res.send(results).status(200);
   } catch (error) {
     console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
+
+router.get("/geolocation/", async (req, res) => {
+  try {
+    const { geoTaggedAds } = colllections;
+    let results = await geoTaggedAds.find({}).toArray();
+    let [files] = await bucket.getFiles();
+    const items = [];
+    files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
+    files.forEach((file) => {
+      if (file.metadata.contentType === "text/plain") return;
+      items.push({
+        _id: file.metadata.metadata.dbID,
+        _urlID: file.id,
+        fileName: file.name,
+        category: results.find((result) =>
+          result._id.equals(file.metadata.metadata.dbID)
+        ).category,
+        name: results.find((result) =>
+          result._id.equals(file.metadata.metadata.dbID)
+        ).name,
+        contentType: file.metadata.contentType,
+        size: file.metadata.size,
+        bucket: file.metadata.bucket,
+        timeCreated: file.metadata.timeCreated,
+        timeUpdated: file.metadata.updated,
+      });
+    });
+    res.send(items).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
+router.post("/geolocation/", upload.single("file"), async (req, res) => {
+  try {
+    const { geoTaggedAds } = colllections;
+    const file = req.file;
+    const data = JSON.parse(req.body.mediaData);
+    let result = await geoTaggedAds.insertOne(data);
+    file.originalname = "geoTaggedAds" + file.originalname;
+    const fileUpload = bucket.file(file.originalname);
+    const stream = fileUpload.createWriteStream({
+      metadata: {
+        contentType: file.mimetype,
+        metadata: {
+          dbID: result.insertedId,
+        },
+      },
+    });
+    stream.on("error", (error) => {
+      res.status(400).send(error);
+      console.error(`Error uploading ${file.originalname}:`, error);
+    });
+    // Upload the file
+    stream.end(file.buffer);
+    await new Promise((resolve) => stream.on("finish", resolve));
+    res.status(200).send({ acknowledged: true });
+  } catch (error) {
+    console.error("Error uploading: ", error);
     res.status(500).send(error);
   }
 });

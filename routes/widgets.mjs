@@ -27,7 +27,15 @@ router.get("/", async (req, res) => {
         key = "user_engagements";
       }
 
-      if (!["planner", "playlist", "engagements", "analytics"].includes(key)) {
+      if (
+        ![
+          "planner",
+          "playlist",
+          "engagements",
+          "analytics",
+          "geoTaggedAds",
+        ].includes(key)
+      ) {
         size.push({ [key]: documents });
       }
     }
