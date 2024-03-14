@@ -4,7 +4,7 @@ import { ObjectId } from "mongodb";
 import { Storage } from "@google-cloud/storage";
 import multer from "multer";
 import { format } from "date-fns";
-import { colllections } from "./collections.mjs";
+import { calculateDistance, colllections } from "./collections.mjs";
 
 const storage = new Storage({
   projectId: "bustling-surf-398905",
@@ -371,16 +371,15 @@ router.get("/geolocation/", async (req, res) => {
     files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
     files.forEach((file) => {
       if (file.metadata.contentType === "text/plain") return;
+
+      const item = results.find((result) =>
+        result._id.equals(file.metadata.metadata.dbID)
+      );
       items.push({
         _id: file.metadata.metadata.dbID,
         _urlID: file.id,
         fileName: file.name,
-        category: results.find((result) =>
-          result._id.equals(file.metadata.metadata.dbID)
-        ).category,
-        name: results.find((result) =>
-          result._id.equals(file.metadata.metadata.dbID)
-        ).name,
+        ...item,
         contentType: file.metadata.contentType,
         size: file.metadata.size,
         bucket: file.metadata.bucket,
@@ -388,7 +387,82 @@ router.get("/geolocation/", async (req, res) => {
         timeUpdated: file.metadata.updated,
       });
     });
-    res.send(items).status(200);
+    res.json(items).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
+router.get("/geolocation/:id", async (req, res) => {
+  try {
+    const { geoTaggedAds } = colllections;
+    let id = req.params.id;
+    let result = await geoTaggedAds.findOne({ _id: new ObjectId(id) });
+    let [files] = await bucket.getFiles();
+    let ad;
+    files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
+    ad = files.find((file) => file.metadata.metadata?.dbID === id);
+
+    ad = {
+      ...result,
+      image: `https://storage.googleapis.com/tamc_advertisements/${ad.id}`,
+      // size: ad.metadata.size,
+      // bucket: ad.metadata.bucket,
+      // timeCreated: ad.metadata.timeCreated,
+      // timeUpdated: ad.metadata.updated,
+    };
+    res.json(ad).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
+router.post("/geolocation/check-coordinates", async (req, res) => {
+  try {
+    const { geoTaggedAds } = colllections;
+    let coords = req.body;
+
+    if (!coords) {
+      res.send("No coordinates passed").status(400);
+    }
+
+    let results = await geoTaggedAds.find({}).toArray();
+    let [files] = await bucket.getFiles();
+
+    let ad = results.find((result) => {
+      // console.log(
+      //   calculateDistance(
+      //     coords.lat,
+      //     coords.lng,
+      //     result.coords.lat,
+      //     result.coords.lng
+      //   )
+      // );
+      return (
+        calculateDistance(
+          coords.lat,
+          coords.lng,
+          result.coords.lat,
+          result.coords.lng
+        ) < 300
+      );
+    });
+    if (ad) {
+      files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
+      let file = files.find((file) => {
+        return file.metadata.metadata?.dbID.includes(ad._id);
+      });
+
+      if (file) {
+        file = {
+          ...ad,
+          image: `https://storage.googleapis.com/tamc_advertisements/${file.id}`,
+        };
+      }
+      res.json(file).status(200);
+    } else {
+      res.send("No ad found").status(400);
+    }
   } catch (error) {
     console.error("Error listing bucket contents:", error);
     res.status(500).send(error);
@@ -398,9 +472,9 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
   try {
     const { geoTaggedAds } = colllections;
     const file = req.file;
-    const data = JSON.parse(req.body.mediaData);
+    const data = JSON.parse(req.body.data);
     let result = await geoTaggedAds.insertOne(data);
-    file.originalname = "geoTaggedAds" + file.originalname;
+    file.originalname = "geoTaggedAds/" + file.originalname;
     const fileUpload = bucket.file(file.originalname);
     const stream = fileUpload.createWriteStream({
       metadata: {
