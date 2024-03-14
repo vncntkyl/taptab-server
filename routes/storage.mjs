@@ -444,7 +444,7 @@ router.post("/geolocation/check-coordinates", async (req, res) => {
           coords.lng,
           result.coords.lat,
           result.coords.lng
-        ) < 300
+        ) < 150
       );
     });
     if (ad) {
