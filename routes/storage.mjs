@@ -408,8 +408,8 @@ router.get("/geolocation/:id", async (req, res) => {
       image: `https://storage.googleapis.com/tamc_advertisements/${ad.id}`,
       // size: ad.metadata.size,
       // bucket: ad.metadata.bucket,
-      // timeCreated: ad.metadata.timeCreated,
-      // timeUpdated: ad.metadata.updated,
+      timeCreated: ad.metadata.timeCreated,
+      timeUpdated: ad.metadata.updated,
     };
     res.json(ad).status(200);
   } catch (error) {
@@ -430,14 +430,6 @@ router.post("/geolocation/check-coordinates", async (req, res) => {
     let [files] = await bucket.getFiles();
 
     let ad = results.find((result) => {
-      // console.log(
-      //   calculateDistance(
-      //     coords.lat,
-      //     coords.lng,
-      //     result.coords.lat,
-      //     result.coords.lng
-      //   )
-      // );
       return (
         calculateDistance(
           coords.lat,
@@ -492,6 +484,60 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
     stream.end(file.buffer);
     await new Promise((resolve) => stream.on("finish", resolve));
     res.status(200).send({ acknowledged: true });
+  } catch (error) {
+    console.error("Error uploading: ", error);
+    res.status(500).send(error);
+  }
+});
+router.put("/:id", upload.single("file"), async (req, res) => {
+  try {
+    const data = JSON.parse(req.body.data);
+    const image = req.file;
+    const { geoTaggedAds } = colllections;
+    const query = { _id: new ObjectId(req.params.id) };
+    const updates = {
+      $set: data,
+    };
+    let result = await geoTaggedAds.updateOne(query, updates);
+
+    if (result.acknowledged) {
+      if (image) {
+        image.originalname = "geoTaggedAds/" + image.originalname;
+        await bucket.file(data.imagePath).delete();
+        const fileUpload = bucket.file(image.originalname);
+        const stream = fileUpload.createWriteStream({
+          metadata: {
+            contentType: image.mimetype,
+            metadata: {
+              dbID: data._id,
+            },
+          },
+        });
+        stream.on("error", (error) => {
+          res.status(400).send(error);
+          console.error(`Error uploading ${image.originalname}:`, error);
+        });
+        // Upload the file
+        stream.end(image.buffer);
+        await new Promise((resolve) => stream.on("finish", resolve));
+        res
+          .send({
+            acknowledged: true,
+            modified: "full",
+          })
+          .status(200);
+      } else {
+        res
+          .send({
+            acknowledged: true,
+            modified: "partial",
+          })
+          .status(200);
+      }
+    } else {
+      console.log("error in database");
+    }
+    // res.send({ data: data, file: image }).status(200);
   } catch (error) {
     console.error("Error uploading: ", error);
     res.status(500).send(error);
