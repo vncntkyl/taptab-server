@@ -4,8 +4,14 @@ import { ObjectId } from "mongodb";
 import { Storage } from "@google-cloud/storage";
 import multer from "multer";
 import { format } from "date-fns";
-import { calculateDistance, colllections } from "./collections.mjs";
-
+import { colllections, geoTaggedAnalytics, players } from "./collections.mjs";
+import {
+  calculateDistance,
+  getCount,
+  getPlayerCount,
+  groupByMonths,
+  groupedByDays,
+} from "./functions.mjs";
 const storage = new Storage({
   projectId: "bustling-surf-398905",
   keyFilename: "bustling-surf-398905-cd0a4fd7ec7c.json",
@@ -417,6 +423,69 @@ router.get("/geolocation/:id", async (req, res) => {
     res.status(500).send(error);
   }
 });
+router.get("/geolocation/analytics/:id", async (req, res) => {
+  try {
+    // let bucket = storage.bucket("geo-ads-analytics");
+    // [files] = await bucket.getFiles()
+
+    // let id = req.params.id;
+    // let result = await geoTaggedAds.findOne({ _id: new ObjectId(id) });
+    // let [files] = await bucket.getFiles();
+    // let ad;
+    // files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
+    // ad = files.find((file) => file.metadata.metadata?.dbID === id);
+
+    // ad = {
+    //   ...result,
+    //   image: `https://storage.googleapis.com/tamc_advertisements/${ad.id}`,
+    //   // size: ad.metadata.size,
+    //   // bucket: ad.metadata.bucket,
+    //   timeCreated: ad.metadata.timeCreated,
+    //   timeUpdated: ad.metadata.updated,
+    // };
+
+    const id = req.params.id;
+    const { from, to } = JSON.parse(req.query.dates);
+
+    const ad = geoTaggedAnalytics.find((ad) => ad._id === id);
+
+    if (ad) {
+      let metrics = ad.metrics;
+
+      metrics.forEach((item) => {
+        item.player_id = players[Math.floor(Math.random() * players.length)];
+      });
+
+      metrics = metrics.sort((a, b) => {
+        return new Date(a.date_logged) - new Date(b.date_logged);
+      });
+
+      const filteredMetrics = metrics.filter(
+        (data) =>
+          new Date(data.date_logged) > new Date(from) &&
+          new Date(data.date_logged) < new Date(to)
+      );
+
+      const analytics = {
+        shows: metrics.length,
+        scans: getCount(metrics, "isScanned", true).length,
+        interactions: getCount(metrics, "isClosed", true).length,
+        players: getPlayerCount(metrics),
+        charts: {
+          daily: groupedByDays(filteredMetrics),
+          monthly: groupByMonths(metrics),
+        },
+      };
+
+      res.json(analytics).status(200);
+    } else {
+      res.send("No analytics found").status(400);
+    }
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
 router.post("/geolocation/check-coordinates", async (req, res) => {
   try {
     const { geoTaggedAds } = colllections;
@@ -466,6 +535,32 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
     const file = req.file;
     const data = JSON.parse(req.body.data);
     let result = await geoTaggedAds.insertOne(data);
+
+    let bucket = storage.bucket("geo-ads-analytics");
+    // Create an empty JSON file
+    const fileNewData = bucket.file(`${result.insertedId}.json`);
+    fileNewData.exists().then(async ([exists]) => {
+      if (!exists) {
+        const newData = JSON.stringify([]);
+        const streamNewData = fileNewData.createWriteStream({
+          metadata: {
+            contentType: "application/json",
+          },
+        });
+        streamNewData.on("error", (error) => {
+          res
+            .status(400)
+            .send({ error: "Error during upload", details: error });
+          console.error(`Error uploading ${result.insertedId}.json:`, error);
+        });
+        streamNewData.on("finish", () => {
+          console.log(`Empty JSON file ${result.insertedId}.json uploaded`);
+        });
+        streamNewData.end(newData);
+      }
+    });
+
+    bucket = storage.bucket("tamc_advertisements");
     file.originalname = "geoTaggedAds/" + file.originalname;
     const fileUpload = bucket.file(file.originalname);
     const stream = fileUpload.createWriteStream({
@@ -483,13 +578,14 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
     // Upload the file
     stream.end(file.buffer);
     await new Promise((resolve) => stream.on("finish", resolve));
+
     res.status(200).send({ acknowledged: true });
   } catch (error) {
     console.error("Error uploading: ", error);
     res.status(500).send(error);
   }
 });
-router.put("/:id", upload.single("file"), async (req, res) => {
+router.put("/geolocation/:id", upload.single("file"), async (req, res) => {
   try {
     const data = JSON.parse(req.body.data);
     const image = req.file;
