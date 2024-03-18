@@ -3,7 +3,7 @@ import db from "../db/conn.mjs";
 import { ObjectId } from "mongodb";
 import { Storage } from "@google-cloud/storage";
 import multer from "multer";
-import { format } from "date-fns";
+import { differenceInMonths, format } from "date-fns";
 import { colllections, geoTaggedAnalytics, players } from "./collections.mjs";
 import {
   calculateDistance,
@@ -460,23 +460,32 @@ router.get("/geolocation/analytics/:id", async (req, res) => {
         return new Date(a.date_logged) - new Date(b.date_logged);
       });
 
-      const filteredMetrics = metrics.filter(
-        (data) =>
-          new Date(data.date_logged) > new Date(from) &&
-          new Date(data.date_logged) < new Date(to)
-      );
+      let filteredMetrics = [...metrics];
+      if (from && to) {
+        filteredMetrics = metrics.filter(
+          (data) =>
+            new Date(data.date_logged) > new Date(from) &&
+            new Date(data.date_logged) < new Date(to)
+        );
+      }
 
       const analytics = {
         shows: metrics.length,
         scans: getCount(metrics, "isScanned", true).length,
         interactions: getCount(metrics, "isClosed", true).length,
         players: getPlayerCount(metrics),
-        charts: {
-          daily: groupedByDays(filteredMetrics),
-          monthly: groupByMonths(metrics),
-        },
+        charts: [],
       };
-
+      if (from && to) {
+        const diffMonths = differenceInMonths(new Date(from), new Date(to));
+        if (diffMonths < -1) {
+          analytics.charts = groupByMonths(filteredMetrics);
+        } else {
+          analytics.charts = groupedByDays(filteredMetrics);
+        }
+      } else {
+        analytics.charts = groupByMonths(metrics);
+      }
       res.json(analytics).status(200);
     } else {
       res.send("No analytics found").status(400);

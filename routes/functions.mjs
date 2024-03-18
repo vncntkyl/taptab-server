@@ -47,10 +47,21 @@ export const groupedByDays = (array) => {
     acc[date.toLocaleDateString()].push(obj);
     return acc;
   }, {});
+
+  const data = Object.keys(groupedDays).map((key) => {
+    return {
+      day: key,
+      records: groupedDays[key]?.length,
+      clicks: groupedDays[key].filter((record) => record.isClosed)?.length || 0,
+      scans: groupedDays[key].filter((record) => record.isScanned)?.length || 0,
+    };
+  });
+
+  return data;
 };
 
 export const groupByMonths = (array) => {
-  return array.reduce((acc, obj) => {
+  const monthly = array.reduce((acc, obj) => {
     delete obj.player_id;
     const date = new Date(obj.date_logged);
     const year = date.getFullYear();
@@ -60,4 +71,15 @@ export const groupByMonths = (array) => {
     acc[key].push(obj);
     return acc;
   }, {});
+
+  const data = Object.keys(monthly).map((key) => {
+    return {
+      day: key,
+      records: monthly[key]?.length,
+      clicks: monthly[key].filter((record) => record.isClosed)?.length || 0,
+      scans: monthly[key].filter((record) => record.isScanned)?.length || 0,
+    };
+  });
+
+  return data;
 };
