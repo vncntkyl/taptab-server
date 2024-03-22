@@ -13,7 +13,7 @@ export const colllections = {
 
 export const geoTaggedAnalytics = [
   {
-    _id: "65f278062d317201f886df41",
+    _id: "65fa9a0baf6ade873b472dab",
     metrics: [
       { date_logged: "2024-01-09T22:23:40Z", isClosed: false, isScanned: true },
       { date_logged: "2023-08-05T04:18:03Z", isClosed: false, isScanned: true },

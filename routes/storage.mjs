@@ -9,6 +9,7 @@ import {
   calculateDistance,
   getCount,
   getPlayerCount,
+  getPlayers,
   groupByMonths,
   groupedByDays,
 } from "./functions.mjs";
@@ -475,9 +476,11 @@ router.get("/geolocation/analytics/:id", async (req, res) => {
         interactions: getCount(metrics, "isClosed", true).length,
         players: getPlayerCount(metrics),
         charts: [],
+        playerChart: await getPlayers(metrics),
       };
       if (from && to) {
         const diffMonths = differenceInMonths(new Date(from), new Date(to));
+        analytics.playerChart = await getPlayers(filteredMetrics);
         if (diffMonths < -1) {
           analytics.charts = groupByMonths(filteredMetrics);
         } else {
@@ -546,28 +549,28 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
     let result = await geoTaggedAds.insertOne(data);
 
     let bucket = storage.bucket("geo-ads-analytics");
-    // Create an empty JSON file
-    const fileNewData = bucket.file(`${result.insertedId}.json`);
-    fileNewData.exists().then(async ([exists]) => {
-      if (!exists) {
-        const newData = JSON.stringify([]);
-        const streamNewData = fileNewData.createWriteStream({
-          metadata: {
-            contentType: "application/json",
-          },
-        });
-        streamNewData.on("error", (error) => {
-          res
-            .status(400)
-            .send({ error: "Error during upload", details: error });
-          console.error(`Error uploading ${result.insertedId}.json:`, error);
-        });
-        streamNewData.on("finish", () => {
-          console.log(`Empty JSON file ${result.insertedId}.json uploaded`);
-        });
-        streamNewData.end(newData);
-      }
-    });
+    // // Create an empty JSON file
+    // const fileNewData = bucket.file(`${result.insertedId}.json`);
+    // fileNewData.exists().then(async ([exists]) => {
+    //   if (!exists) {
+    //     const newData = JSON.stringify([]);
+    //     const streamNewData = fileNewData.createWriteStream({
+    //       metadata: {
+    //         contentType: "application/json",
+    //       },
+    //     });
+    //     streamNewData.on("error", (error) => {
+    //       res
+    //         .status(400)
+    //         .send({ error: "Error during upload", details: error });
+    //       console.error(`Error uploading ${result.insertedId}.json:`, error);
+    //     });
+    //     streamNewData.on("finish", () => {
+    //       console.log(`Empty JSON file ${result.insertedId}.json uploaded`);
+    //     });
+    //     streamNewData.end(newData);
+    //   }
+    // });
 
     bucket = storage.bucket("tamc_advertisements");
     file.originalname = "geoTaggedAds/" + file.originalname;

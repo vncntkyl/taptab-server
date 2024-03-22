@@ -1,3 +1,8 @@
+import { ObjectId } from "mongodb";
+import db from "../db/conn.mjs";
+
+let collection = db.collection("players");
+
 export function calculateDistance(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // Radius of the earth in meters
   const dLat = deg2rad(lat2 - lat1);
@@ -28,15 +33,31 @@ export function getCount(metrics, key, comp) {
     });
 }
 
+export async function getPlayers(array = []) {
+  const uniquePlayers = [...new Set(array.map((obj) => obj.player_id))];
+
+  const players = await Promise.all(
+    uniquePlayers.map(async (player) => {
+      const playerInfo = await getPlayer(player);
+      return {
+        player: playerInfo?.device_name || "Anon",
+        passed_by: array.filter((item) => item.player_id === player).length,
+      };
+    })
+  );
+
+  return players;
+}
 export function getPlayerCount(array = []) {
   const uniquePlayers = [...new Set(array.map((obj) => obj.player_id))];
 
-  const players = uniquePlayers.map((player) => ({
-    player_id: player,
-    passed_by: array.filter((item) => item.player_id === player).length,
-  }));
+  uniquePlayers.map((player) => {
+    return {
+      passed_by: array.filter((item) => item.player_id === player).length,
+    };
+  });
 
-  return players;
+  return uniquePlayers.length;
 }
 
 export const groupedByDays = (array) => {
@@ -82,4 +103,18 @@ export const groupByMonths = (array) => {
   });
 
   return data;
+};
+
+const getPlayer = async (id) => {
+  try {
+    const result = await collection.findOne(
+      {
+        _id: new ObjectId(id),
+      },
+      { projection: { isOnline: 0 } }
+    );
+    return result;
+  } catch (error) {
+    console.error(error);
+  }
 };
