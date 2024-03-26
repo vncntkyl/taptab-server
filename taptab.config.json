@@ -1,0 +1,51 @@
+{
+  "main_ads": {
+    "resolution": [
+      {
+        "minimum": {
+          "height": 720,
+          "width": 1280
+        },
+        "maximum": {
+          "height": 1080,
+          "width": 1920
+        }
+      },
+      {
+        "minimum": {
+          "height": 800,
+          "width": 1280
+        },
+        "maximum": {
+          "height": 900,
+          "width": 1440
+        }
+      }
+    ],
+    "accepted_file_types": {
+      "videos": [
+        "webm"
+      ],
+      "images": [
+        "webp"
+      ]
+    },
+    "file_size_limit": 10
+  },
+  "static_ads": {
+    "maximum_resolution": {
+      "height": 250,
+      "width": 400
+    },
+    "minimum_cards_display": 5
+  },
+  "geo_tagged_ads": {
+    "maximum_resolution": {
+      "height": 250,
+      "width": 400
+    },
+    "pop_up_distance_trigger": 150
+  },
+  "updated_by": "",
+  "last_update": ""
+}
