@@ -1,6 +1,8 @@
 import express from "express";
 const router = express.Router();
 import db from "../db/conn.mjs";
+
+//retrieve the summary of items in the content manager
 router.get("/", async (req, res) => {
   try {
     let size = [];
@@ -54,6 +56,45 @@ router.get("/", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).send("Server Error");
+  }
+});
+
+
+//truncate the system
+router.delete("/", async (req, res) => {
+  try {
+    const collections = await db.listCollections().toArray();
+
+    const collectionsToTruncate = collections
+      .filter((collection) => collection.name !== "users")
+      .map((collection) => collection.name);
+
+    if (collectionsToTruncate.length === 0) {
+      console.log("No collections to truncate (except users)");
+      res.status(200).send("No collections to truncate (except users)");
+      return;
+    }
+
+    const promises = collectionsToTruncate.map((collectionName) =>
+      db.collection(collectionName).deleteMany({})
+    );
+
+    Promise.all(promises)
+      .then((results) => {
+        results.forEach((result, index) => {
+          console.log(
+            `Truncated ${collectionsToTruncate[index]}: ${result.deletedCount} documents deleted`
+          );
+        });
+        res.status(200).send("Collections truncated successfully");
+      })
+      .catch((error) => {
+        console.error("Error truncating collections:", error);
+        res.status(500).send("Error truncating collections: ", error);
+      });
+  } catch (error) {
+    console.error("Error listing collections:", error);
+    res.status(500).send("Error listing collections: ", error);
   }
 });
 
