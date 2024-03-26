@@ -6,10 +6,10 @@ import multer from "multer";
 import fs from "fs";
 
 const storage = new Storage({
-  projectId: "bustling-surf-398905",
-  keyFilename: "bustling-surf-398905-cd0a4fd7ec7c.json",
+  projectId: "taptab-418401",
+  keyFilename: "taptab-418401-a7f87dfe0929.json",
 });
-const bucket = storage.bucket("tamc_advertisements");
+const bucket = storage.bucket("tap_ads");
 //GET FILES
 const upload = multer({ storage: multer.memoryStorage() });
 const router = express.Router();
@@ -20,7 +20,7 @@ router.get("/", async (req, res) => {
     let results = await collection
       .find({ status: { $not: { $eq: "deleted" } } })
       .toArray();
-    let bucket = storage.bucket("tamc_advertisements");
+    let bucket = storage.bucket("tap_ads");
     let [files] = await bucket.getFiles();
     const items = [];
 
@@ -37,7 +37,7 @@ router.get("/", async (req, res) => {
       });
     });
 
-    bucket = storage.bucket("static-ad-analytics");
+    bucket = storage.bucket("static_analytics");
     [files] = await bucket.getFiles();
 
     let analytics = [];
@@ -107,7 +107,7 @@ router.get("/:id", async (req, res) => {
     let results = await collection
       .find({ status: { $not: { $eq: "deleted" } } })
       .toArray();
-    let bucket = storage.bucket("tamc_advertisements");
+    let bucket = storage.bucket("tap_ads");
     let [files] = await bucket.getFiles();
     const items = [];
 
@@ -124,7 +124,7 @@ router.get("/:id", async (req, res) => {
       });
     });
 
-    bucket = storage.bucket("static-ad-analytics");
+    bucket = storage.bucket("static_analytics");
     [files] = await bucket.getFiles();
 
     let analytics = [];
@@ -199,7 +199,7 @@ router.get("/analytics/:id", async (req, res) => {
       action: "scanned",
       date: new Date(new Date().toISOString()).toISOString(),
     };
-    const bucket = storage.bucket("static-ad-analytics");
+    const bucket = storage.bucket("static_analytics");
 
     const file = bucket.file(`${req.params.id}.json`);
 
@@ -256,7 +256,7 @@ router.put("/analytics/:id", async (req, res) => {
   try {
     const newLog = req.body;
     let id = req.params.id;
-    const bucket = storage.bucket("static-ad-analytics");
+    const bucket = storage.bucket("static_analytics");
 
     const file = bucket.file(`${id}.json`);
 
@@ -333,7 +333,7 @@ router.post("/create", upload.single("file"), async (req, res) => {
     const data = JSON.parse(req.body.adData);
     let collection = db.collection("staticAds");
     let result = await collection.insertOne(data);
-    let bucket = storage.bucket("static-ad-analytics");
+    let bucket = storage.bucket("static_analytics");
     // Create an empty JSON file
     const fileNewData = bucket.file(`${result.insertedId}.json`);
     fileNewData.exists().then(async ([exists]) => {
@@ -361,7 +361,7 @@ router.post("/create", upload.single("file"), async (req, res) => {
       return res.status(400).send("No image uploaded.");
     }
 
-    bucket = storage.bucket("tamc_advertisements");
+    bucket = storage.bucket("tap_ads");
 
     image.originalname = "staticAds/" + image.originalname;
     const fileUpload = bucket.file(image.originalname);

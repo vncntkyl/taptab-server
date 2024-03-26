@@ -14,11 +14,11 @@ import {
   groupedByDays,
 } from "./functions.mjs";
 const storage = new Storage({
-  projectId: "bustling-surf-398905",
-  keyFilename: "bustling-surf-398905-cd0a4fd7ec7c.json",
+  projectId: "taptab-418401",
+  keyFilename: "taptab-418401-a7f87dfe0929.json",
 });
 const router = express.Router();
-const bucket = storage.bucket("tamc_advertisements");
+const bucket = storage.bucket("tap_ads");
 //GET FILES
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -376,12 +376,22 @@ router.get("/geolocation/", async (req, res) => {
     let [files] = await bucket.getFiles();
     const items = [];
     files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
-    files.forEach((file) => {
-      if (file.metadata.contentType === "text/plain") return;
+
+    for (const file of files) {
+      if (file.metadata.contentType === "text/plain") continue;
 
       const item = results.find((result) =>
         result._id.equals(file.metadata.metadata.dbID)
       );
+
+      // Generate signed URL
+      const options = {
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 60 * 60 * 1000,
+      };
+      const [signedUrl] = await bucket.file(file.name).getSignedUrl(options);
+
       items.push({
         _id: file.metadata.metadata.dbID,
         _urlID: file.id,
@@ -392,14 +402,18 @@ router.get("/geolocation/", async (req, res) => {
         bucket: file.metadata.bucket,
         timeCreated: file.metadata.timeCreated,
         timeUpdated: file.metadata.updated,
+        signedUrl: signedUrl, // Add signed URL to the item
       });
-    });
+    }
+
+    console.log(items);
     res.json(items).status(200);
   } catch (error) {
     console.error("Error listing bucket contents:", error);
     res.status(500).send(error);
   }
 });
+
 router.get("/geolocation/:id", async (req, res) => {
   try {
     const { geoTaggedAds } = colllections;
@@ -410,9 +424,16 @@ router.get("/geolocation/:id", async (req, res) => {
     files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
     ad = files.find((file) => file.metadata.metadata?.dbID === id);
 
+    const options = {
+      version: "v4",
+      action: "read",
+      expires: Date.now() + 60 * 60 * 1000,
+    };
+    const [signedUrl] = await bucket.file(ad.name).getSignedUrl(options);
+
     ad = {
       ...result,
-      image: `https://storage.googleapis.com/tamc_advertisements/${ad.id}`,
+      image: signedUrl,
       // size: ad.metadata.size,
       // bucket: ad.metadata.bucket,
       timeCreated: ad.metadata.timeCreated,
@@ -548,7 +569,7 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
     const data = JSON.parse(req.body.data);
     let result = await geoTaggedAds.insertOne(data);
 
-    let bucket = storage.bucket("geo-ads-analytics");
+    // let bucket = storage.bucket("geo-ads-analytics");
     // // Create an empty JSON file
     // const fileNewData = bucket.file(`${result.insertedId}.json`);
     // fileNewData.exists().then(async ([exists]) => {
@@ -572,7 +593,7 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
     //   }
     // });
 
-    bucket = storage.bucket("tamc_advertisements");
+    // bucket = storage.bucket("tap_ads");
     file.originalname = "geoTaggedAds/" + file.originalname;
     const fileUpload = bucket.file(file.originalname);
     const stream = fileUpload.createWriteStream({
