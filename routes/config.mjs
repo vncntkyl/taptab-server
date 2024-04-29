@@ -28,6 +28,23 @@ const updateFile = (updatedData, callback) => {
     callback(null);
   });
 };
+function updateNested(obj, path, newValue) {
+  if (!path) return obj;
+
+  const keys = path.split(".");
+  let current = obj;
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (!current[keys[i]]) {
+      current[keys[i]] = {};
+    }
+    current = current[keys[i]];
+  }
+
+  current[keys[keys.length - 1]] = newValue;
+
+  return obj;
+}
 
 router.get("/", async (req, res) => {
   retrieveFile((err, jsonData) => {
@@ -40,14 +57,31 @@ router.get("/", async (req, res) => {
 });
 
 // UPDATE AN ITEM
-router.put("/", async (req, res) => {
+router.patch("/", async (req, res) => {
   const updatedjson = req.body;
-  updateFile(updatedjson, (err) => {
+
+  let settings = await new Promise((resolve, reject) => {
+    retrieveFile((err, jsonData) => {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(jsonData);
+      }
+    });
+  });
+
+  // Apply updates
+  for (const [key, value] of Object.entries(updatedjson)) {
+    settings = updateNested(settings, key, value);
+  }
+
+  const updatedConfig = settings;
+  updateFile(updatedConfig, (err) => {
     if (err) {
       res.status(500).send("Error updating JSON file");
       return;
     }
-    res.send(updatedjson).status(200);
+    res.send(updatedConfig).status(200);
   });
 });
 

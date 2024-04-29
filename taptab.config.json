@@ -1,51 +1,29 @@
 {
-  "main_ads": {
-    "resolution": [
-      {
-        "minimum": {
-          "height": 720,
-          "width": 1280
-        },
-        "maximum": {
-          "height": 1080,
-          "width": 1920
-        }
+  "media": {
+    "video_resolution": {
+      "width": 1920,
+      "height": 1080
+    },
+    "image_resolution": {
+      "static_ads": {
+        "width": 600,
+        "height": 400
       },
-      {
-        "minimum": {
-          "height": 800,
-          "width": 1280
-        },
-        "maximum": {
-          "height": 900,
-          "width": 1440
-        }
+      "geo-tagged_ads": {
+        "width": 800,
+        "height": 800
       }
-    ],
+    },
+    "file_size_limit": 10,
     "accepted_file_types": {
-      "videos": [
-        "webm"
-      ],
-      "images": [
-        "webp"
-      ]
-    },
-    "file_size_limit": 10
+      "videos": "webm",
+      "images": "webp"
+    }
   },
-  "static_ads": {
-    "maximum_resolution": {
-      "height": 250,
-      "width": 400
-    },
-    "minimum_cards_display": 5
+  "app": {
+    "static_ads_display": 10,
+    "geo-tagged_ads_radius": 150
   },
-  "geo_tagged_ads": {
-    "maximum_resolution": {
-      "height": 250,
-      "width": 400
-    },
-    "pop_up_distance_trigger": 150
-  },
-  "updated_by": "",
-  "last_update": ""
+  "updated_by": "64f6e011d3151b362167b25c",
+  "last_update": "2024-03-27T04:04:38.846Z"
 }
