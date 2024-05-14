@@ -33,11 +33,19 @@ router.get("/", async (req, res) => {
         !file.name.startsWith("staticAds") &&
         !file.name.startsWith("geoTaggedAds")
     );
-    files.forEach((file) => {
-      if (file.metadata.contentType === "text/plain") return;
+
+    for (const file of files) {
+      if (file.metadata.contentType === "text/plain") continue;
+
+      const options = {
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 60 * 60 * 1000,
+      };
+      const [signedUrl] = await bucket.file(file.name).getSignedUrl(options);
+
       items.push({
         _id: file.metadata.metadata.dbID,
-        _urlID: file.id,
         fileName: file.name,
         category: results.find((result) =>
           result._id.equals(file.metadata.metadata.dbID)
@@ -49,9 +57,9 @@ router.get("/", async (req, res) => {
         size: file.metadata.size,
         bucket: file.metadata.bucket,
         timeCreated: file.metadata.timeCreated,
-        timeUpdated: file.metadata.updated,
+        signedUrl: signedUrl,
       });
-    });
+    }
     const library = results.map((result) => {
       const match = items.find(
         (item) => item._id == result._id && !item.fileName.includes("tmb")
@@ -112,6 +120,12 @@ router.get("/media/:id", async (req, res) => {
     const mediaThumbnail = files.find((file) =>
       file.name.startsWith("thumbnail")
     );
+    const options = {
+      version: "v4",
+      action: "read",
+      expires: Date.now() + 60 * 60 * 1000,
+    };
+    const [signedUrl] = await bucket.file(mediaItem.name).getSignedUrl(options);
     let item = {
       _id: result._id,
       category: result.category,
@@ -135,7 +149,6 @@ router.get("/media/:id", async (req, res) => {
           contentType: mediaThumbnail.metadata.contentType,
           size: mediaThumbnail.metadata.size,
           timeCreated: mediaThumbnail.metadata.timeCreated,
-          timeUpdated: mediaThumbnail.metadata.updated,
         },
         logs: { ...analytics },
       };
@@ -148,7 +161,7 @@ router.get("/media/:id", async (req, res) => {
         size: mediaItem.metadata.size,
         bucket: mediaItem.metadata.bucket,
         timeCreated: mediaItem.metadata.timeCreated,
-        timeUpdated: mediaItem.metadata.updated,
+        signedUrl: signedUrl,
         logs: { ...analytics },
       };
     } else {
@@ -161,12 +174,12 @@ router.get("/media/:id", async (req, res) => {
         bucket: mediaItem.metadata.bucket,
         timeCreated: mediaItem.metadata.timeCreated,
         timeUpdated: mediaItem.metadata.updated,
+        signedUrl: signedUrl,
         thumbnail: {
           fileName: mediaThumbnail.name,
           contentType: mediaThumbnail.metadata.contentType,
           size: mediaThumbnail.metadata.size,
           timeCreated: mediaThumbnail.metadata.timeCreated,
-          timeUpdated: mediaThumbnail.metadata.updated,
         },
         logs: { ...analytics },
       };
@@ -185,6 +198,20 @@ router.get("/playlist/", async (req, res) => {
   try {
     let collection = db.collection("playlist");
     let results = await collection.find({}).toArray();
+
+    res.send(results).status(200);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
+router.get("/playlist/names", async (req, res) => {
+  try {
+    let collection = db.collection("playlist");
+    let results = await collection
+      .find({})
+      .project({ _id: 1, playlist_name: 1, category: 1 })
+      .toArray();
 
     res.send(results).status(200);
   } catch (error) {
@@ -304,6 +331,84 @@ router.post("/upload", upload.array("files", 5), async (req, res) => {
     res.status(500).send(error);
   }
 });
+router.put("/upload/:id", upload.array("files", 5), async (req, res) => {
+  try {
+    const files = req.files;
+    const id = req.params.id;
+    const data = JSON.parse(req.body.mediaData);
+    const updates = { ...data };
+    // console.log(id, data);
+    delete updates._id;
+    delete updates.fileName;
+    delete updates.contentType;
+    delete updates.size;
+    delete updates.bucket;
+    delete updates.timeCreated;
+    delete updates.timeUpdated;
+    delete updates.signedUrl;
+    delete updates.thumbnail_src;
+
+    let collection = await db.collection("media");
+    let result = await collection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          ...updates,
+        },
+      }
+    );
+
+    if (result.acknowledged) {
+      // if (data.type === "image") {
+      //   if (!files || files.length === 0) {
+      //     return res.status(400).send("No files uploaded.");
+      //   }
+      //   files.forEach(async (file) => {
+      //     console.log(file);
+      //   });
+      // }
+      if (data.type === "video" || data.type === "link") {
+        if (!files || files.length === 0) {
+          return res.status(200).send(result);
+        }
+        let fileUpload;
+
+        files.forEach(async (file) => {
+          if (file.originalname.includes("tmb")) {
+            file.originalname = "thumbnail/" + file.originalname;
+
+            await bucket.file(data.thumbnail_src).delete();
+            fileUpload = bucket.file(file.originalname);
+          } else {
+            await bucket.file(data.fileName).delete();
+            fileUpload = bucket.file(file.originalname);
+          }
+          const stream = fileUpload.createWriteStream({
+            metadata: {
+              contentType: file.mimetype,
+              metadata: {
+                dbID: data._id,
+              },
+            },
+          });
+          stream.on("error", (error) => {
+            res.status(400).send(error);
+            console.error(`Error uploading ${file.originalname}:`, error);
+          });
+
+          // Upload the file
+          stream.end(file.buffer);
+          await new Promise((resolve) => stream.on("finish", resolve));
+        });
+      }
+    }
+
+    res.status(200).send({ acknowledged: true });
+  } catch (error) {
+    console.error("Error uploading: ", error);
+    res.status(500).send(error);
+  }
+});
 router.patch("/:id", async (req, res) => {
   try {
     let collection = db.collection("playlist");
@@ -406,7 +511,7 @@ router.get("/geolocation/", async (req, res) => {
       });
     }
 
-    console.log(items);
+    // console.log(items);
     res.json(items).status(200);
   } catch (error) {
     console.error("Error listing bucket contents:", error);

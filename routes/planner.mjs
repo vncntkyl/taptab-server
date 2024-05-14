@@ -1,11 +1,20 @@
 import express from "express";
 import db from "../db/conn.mjs";
 import { ObjectId } from "mongodb";
+import { format, getDay, isSameDay, parse } from "date-fns";
 
 const router = express.Router();
 let collection = db.collection("planner");
 let results;
-
+const dayNames = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 //GET SCHEDULES
 router.get("/", async (req, res) => {
   try {
@@ -30,11 +39,12 @@ router.get("/", async (req, res) => {
         {
           $project: {
             _id: 1,
-            start_date: 1,
-            end_date: 1,
+            start: 1,
+            end: 1,
             backgroundColor: 1,
             status: 1,
             playlist_id: 1,
+            occurence: 1,
             playlist_media: "$playlist.media_items",
           },
         },
@@ -43,7 +53,13 @@ router.get("/", async (req, res) => {
         },
       ])
       .toArray();
-    res.send(results).status(200);
+
+    let schedules = [];
+
+    results.forEach((result) => {
+      schedules = schedules.concat(generateSchedule(result));
+    });
+    res.send(schedules).status(200);
   } catch (error) {
     console.error(error);
     res.status(500).send("Server Error");
@@ -55,17 +71,17 @@ router.post("/add", async (req, res) => {
   try {
     const schedule = req.body;
     const newSchedule = {
-      playlist_id: new ObjectId(schedule.title),
-      start_date: schedule.start,
-      end_date: schedule.end,
-      backgroundColor: schedule.backgroundColor,
+      ...schedule,
+      playlist_id: new ObjectId(schedule.playlist_id),
       status: "active",
     };
     results = await collection.insertOne(newSchedule);
 
     if (results.acknowledged) {
       let collection = db.collection("playlist");
-      results = await collection.findOne({ _id: new ObjectId(schedule.title) });
+      results = await collection.findOne({
+        _id: new ObjectId(schedule.playlist_id),
+      });
       const updates = {
         $inc: {
           usage: 1,
@@ -82,5 +98,74 @@ router.post("/add", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+function generateSchedule(item) {
+  const start_date = new Date(item.start);
+  const end_date = new Date(item.end);
+  let schedule = [];
+
+  if (item.occurence.repeat === "everyday") {
+    let current_date = new Date(start_date);
+    while (current_date <= end_date) {
+      const start_time = new Date(item.occurence.timeslot.start);
+      const end_time = new Date(item.occurence.timeslot.end);
+      schedule.push({
+        id: item._id,
+        start: new Date(
+          current_date.getFullYear(),
+          current_date.getMonth(),
+          current_date.getDate(),
+          start_time.getHours(),
+          start_time.getMinutes()
+        ),
+        end: new Date(
+          current_date.getFullYear(),
+          current_date.getMonth(),
+          current_date.getDate(),
+          end_time.getHours(),
+          end_time.getMinutes()
+        ),
+        playlist_id: item.playlist_id,
+        backgroundColor: item.backgroundColor,
+      });
+      current_date.setDate(current_date.getDate() + 1);
+    }
+  } else if (item.occurence.repeat === "custom") {
+    item.occurence.timeslot.forEach((timeslot) => {
+      const day = timeslot.day.toLowerCase();
+      let current_date = new Date(start_date);
+      while (current_date <= end_date) {
+        if (
+          current_date
+            .toLocaleDateString("en-US", { weekday: "long" })
+            .toLowerCase() === day
+        ) {
+          const start_time = new Date(timeslot.start);
+          const end_time = new Date(timeslot.end);
+          schedule.push({
+            id: item._id,
+            start: new Date(
+              current_date.getFullYear(),
+              current_date.getMonth(),
+              current_date.getDate(),
+              start_time.getHours(),
+              start_time.getMinutes()
+            ),
+            end: new Date(
+              current_date.getFullYear(),
+              current_date.getMonth(),
+              current_date.getDate(),
+              end_time.getHours(),
+              end_time.getMinutes()
+            ),
+            playlist_id: item.playlist_id,
+            backgroundColor: item.backgroundColor,
+          });
+        }
+        current_date.setDate(current_date.getDate() + 1);
+      }
+    });
+  }
+  return schedule;
+}
 
 export default router;

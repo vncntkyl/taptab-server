@@ -26,16 +26,24 @@ router.get("/", async (req, res) => {
 
     files = files.filter((file) => file.name.startsWith("staticAds"));
 
-    files.forEach((file) => {
+    for (const file of files) {
       if (file.metadata.contentType === "text/plain") return;
+      const options = {
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 60 * 60 * 1000,
+      };
+      const [signedUrl] = await bucket.file(file.name).getSignedUrl(options);
+
       items.push({
         _id: file.metadata.metadata.dbID,
         _urlID: file.id,
         fileName: file.name,
         timeCreated: file.metadata.timeCreated,
         timeUpdated: file.metadata.updated,
+        signedUrl: signedUrl,
       });
-    });
+    }
 
     bucket = storage.bucket("static_analytics");
     [files] = await bucket.getFiles();
@@ -113,16 +121,24 @@ router.get("/:id", async (req, res) => {
 
     files = files.filter((file) => file.name.startsWith("staticAds"));
 
-    files.forEach((file) => {
+    for (const file of files) {
       if (file.metadata.contentType === "text/plain") return;
+      const options = {
+        version: "v4",
+        action: "read",
+        expires: Date.now() + 60 * 60 * 1000,
+      };
+      const [signedUrl] = await bucket.file(file.name).getSignedUrl(options);
+
       items.push({
         _id: file.metadata.metadata.dbID,
         _urlID: file.id,
         fileName: file.name,
         timeCreated: file.metadata.timeCreated,
         timeUpdated: file.metadata.updated,
+        signedUrl: signedUrl,
       });
-    });
+    }
 
     bucket = storage.bucket("static_analytics");
     [files] = await bucket.getFiles();
