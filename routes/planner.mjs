@@ -65,7 +65,56 @@ router.get("/", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+//get single schedule
+router.get("/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    let query = {
+      _id: new ObjectId(id),
+      status: { $not: { $eq: "deleted" } },
+    };
+    results = await collection
+      .aggregate([
+        {
+          $lookup: {
+            from: "playlist",
+            localField: "playlist_id",
+            foreignField: "_id",
+            as: "playlist",
+          },
+        },
+        {
+          $unwind: {
+            path: "$playlist",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            start: 1,
+            end: 1,
+            backgroundColor: 1,
+            status: 1,
+            playlist_id: 1,
+            occurence: 1,
+            // playlist_media: "$playlist.media_items",
+          },
+        },
+        {
+          $match: query,
+        },
+      ])
+      .toArray();
+    if (results.length === 0) res.send("No results found.").status(400);
 
+    const planner = results[0];
+
+    res.send(planner).status(200);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Server Error");
+  }
+});
 // ADD SCHEDULE
 router.post("/add", async (req, res) => {
   try {
