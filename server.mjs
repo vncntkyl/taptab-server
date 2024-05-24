@@ -10,6 +10,7 @@ import planners from "./routes/planner.mjs";
 import players from "./routes/players.mjs";
 import widgets from "./routes/widgets.mjs";
 import config from "./routes/config.mjs";
+import weather from "./routes/weather.mjs";
 
 const PORT = process.env.PORT || 5050;
 const app = express();
@@ -26,6 +27,7 @@ app.use("/planner", planners);
 app.use("/players", players);
 app.use("/widgets", widgets);
 app.use("/config", config);
+app.use("/weather", weather);
 
 // start the Express server
 app.listen(PORT, () => {

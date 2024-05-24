@@ -36,6 +36,7 @@ router.get("/", async (req, res) => {
           "engagements",
           "analytics",
           "geoTaggedAds",
+          "weatherAds"
         ].includes(key)
       ) {
         size.push({ [key]: documents });

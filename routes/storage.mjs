@@ -31,7 +31,8 @@ router.get("/", async (req, res) => {
     files = files.filter(
       (file) =>
         !file.name.startsWith("staticAds") &&
-        !file.name.startsWith("geoTaggedAds")
+        !file.name.startsWith("geoTaggedAds") &&
+        !file.name.startsWith("weatherAds")
     );
 
     for (const file of files) {
@@ -455,7 +456,9 @@ router.patch("/analytics/:id", async (req, res) => {
       $push: { logs: { $each: data, $position: 0 } },
     };
 
-    const results = await collection.updateOne(query, updates);
+    const results = await collection.updateOne(query, updates, {
+      upsert: true,
+    });
     res.send(results).status(200);
   } catch (e) {
     res.send(e).status(400);

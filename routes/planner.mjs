@@ -174,6 +174,7 @@ function generateSchedule(item) {
           end_time.getMinutes()
         ),
         playlist_id: item.playlist_id,
+        playlist_media: item.playlist_media,
         backgroundColor: item.backgroundColor,
       });
       current_date.setDate(current_date.getDate() + 1);
@@ -207,6 +208,7 @@ function generateSchedule(item) {
               end_time.getMinutes()
             ),
             playlist_id: item.playlist_id,
+            playlist_media: item.playlist_media,
             backgroundColor: item.backgroundColor,
           });
         }

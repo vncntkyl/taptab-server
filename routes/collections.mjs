@@ -9,6 +9,7 @@ export const colllections = {
   players: db.collection("players"),
   planner: db.collection("planner"),
   surverys: db.collection("engagements"),
+  weather: db.collection("weatherAds"),
 };
 
 export const geoTaggedAnalytics = [
