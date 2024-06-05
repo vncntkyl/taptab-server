@@ -20,18 +20,19 @@ router.get("/", async (req, res) => {
   try {
     let query = { status: { $not: { $eq: "deleted" } } };
     let conditions = [];
-    if (Object.keys(params) > 0) {
+    if (Object.keys(params).length > 0) {
       conditions.push({
         weather: { $eq: params.weather },
       });
       conditions.push({
         trigger_temperature: { $gte: params.temperature },
       });
-
+      
       query.$or = conditions;
       // query["weather"] = { $eq: params.weather };
       // query["temperature"] = { $eq: params.temperature };
     }
+    // console.log(params.weather, params.temperature, JSON.stringify(query));
     let results = await weather.find(query).toArray();
     let [files] = await bucket.getFiles();
     const items = [];

@@ -4,6 +4,7 @@ import { ObjectId } from "mongodb";
 import { Storage } from "@google-cloud/storage";
 import multer from "multer";
 import fs from "fs";
+import { format } from "date-fns";
 
 const storage = new Storage({
   projectId: "taptab-418401",
@@ -109,6 +110,81 @@ router.get("/", async (req, res) => {
   }
 });
 
+router.get("/analytics", async (req, res) => {
+  try {
+    const bucket = storage.bucket("static_analytics");
+    const [files] = await bucket.getFiles();
+    const currentDate = new Date();
+    const monthBefore = format(
+      new Date(new Date().setDate(currentDate.getDate() - 28)),
+      "yyyy-MM-dd"
+    );
+    let analytics = [];
+    await Promise.all(
+      files.map(async (file) => {
+        const stream = file.createReadStream();
+        let data = "";
+
+        // Wrap the stream reading in a Promise
+        const readStreamPromise = new Promise((resolve, reject) => {
+          stream.on("data", (chunk) => {
+            data += chunk;
+          });
+
+          stream.on("end", () => {
+            const existingData = JSON.parse(data);
+            for (const data of existingData) {
+              data._id = file.name.split(".")[0];
+            }
+            if (existingData.length !== 0) {
+              analytics.push(existingData);
+            }
+            resolve(); // Resolve the Promise when the stream is complete
+          });
+
+          stream.on("error", (error) => {
+            reject(error); // Reject the Promise on error
+          });
+        });
+
+        await readStreamPromise; // Wait for the stream to complete before moving to the next file
+      })
+    );
+
+    analytics = analytics.flat();
+
+    let information = [
+      {
+        name: "Impressions",
+        value: 0,
+      },
+      {
+        name: "Engagements",
+        value: 0,
+      },
+    ];
+
+    analytics = analytics.filter((entry) => {
+      return (
+        new Date(entry.date) >= new Date(monthBefore) &&
+        new Date(entry.date) <= currentDate
+      );
+    });
+    for (const entry of analytics) {
+      if (entry.action === "viewed") {
+        information[0].value += 1;
+      }
+      if (entry.action === "scanned") {
+        information[1].value += 1;
+      }
+    }
+
+    res.status(200).send(information);
+  } catch (error) {
+    console.error("Error listing bucket contents:", error);
+    res.status(500).send(error);
+  }
+});
 router.get("/:id", async (req, res) => {
   try {
     let collection = db.collection("staticAds");
@@ -207,61 +283,63 @@ router.get("/:id", async (req, res) => {
 });
 router.get("/analytics/:id", async (req, res) => {
   try {
-    let collection = db.collection("staticAds");
-    let result = await collection.findOne({
-      _id: new ObjectId(req.params.id),
-    });
-    const log = {
-      action: "scanned",
-      date: new Date(new Date().toISOString()).toISOString(),
-    };
-    const bucket = storage.bucket("static_analytics");
+    if (req.params.id !== null) {
+      let collection = db.collection("staticAds");
+      let result = await collection.findOne({
+        _id: new ObjectId(req.params.id),
+      });
+      const log = {
+        action: "scanned",
+        date: new Date(new Date().toISOString()).toISOString(),
+      };
+      const bucket = storage.bucket("static_analytics");
 
-    const file = bucket.file(`${req.params.id}.json`);
+      const file = bucket.file(`${req.params.id}.json`);
 
-    file.exists().then(async ([exists]) => {
-      if (exists) {
-        const readStream = file.createReadStream();
+      file.exists().then(async ([exists]) => {
+        if (exists) {
+          const readStream = file.createReadStream();
 
-        let data = "";
+          let data = "";
 
-        readStream.on("data", (chunk) => {
-          data += chunk;
-        });
-
-        readStream.on("end", async () => {
-          const existingData = JSON.parse(data);
-          existingData.push(log);
-          const updatedJsonString = JSON.stringify(existingData, null, 2);
-
-          const stream = file.createWriteStream({
-            metadata: {
-              contentType: "application/json",
-            },
+          readStream.on("data", (chunk) => {
+            data += chunk;
           });
 
-          // Handle errors during the upload
-          stream.on("error", (error) => {
-            res
-              .status(400)
-              .send({ error: "Error during upload", details: error });
-            console.error(`Error uploading ${req.params.id}.json:`, error);
-          });
+          readStream.on("end", async () => {
+            const existingData = JSON.parse(data);
+            existingData.push(log);
+            const updatedJsonString = JSON.stringify(existingData, null, 2);
 
-          // Handle the completion of the upload
-          stream.on("finish", () => {
-            res.send(result).status(200);
-          });
-          stream.end(updatedJsonString);
-        });
-      }
-    });
+            const stream = file.createWriteStream({
+              metadata: {
+                contentType: "application/json",
+              },
+            });
 
-    // if (results.acknowledged) {
-    //   res.send(result).status(200);
-    // } else {
-    //   res.send("An error occured").status(404);
-    // }
+            // Handle errors during the upload
+            stream.on("error", (error) => {
+              res
+                .status(400)
+                .send({ error: "Error during upload", details: error });
+              console.error(`Error uploading ${req.params.id}.json:`, error);
+            });
+
+            // Handle the completion of the upload
+            stream.on("finish", () => {
+              res.send(result).status(200);
+            });
+            stream.end(updatedJsonString);
+          });
+        }
+      });
+
+      // if (results.acknowledged) {
+      //   res.send(result).status(200);
+      // } else {
+      //   res.send("An error occured").status(404);
+      // }
+    }
   } catch (error) {
     console.error("Error listing bucket contents:", error);
     res.status(500).send(error);
