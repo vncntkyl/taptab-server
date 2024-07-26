@@ -8,7 +8,6 @@ import { colllections, geoTaggedAnalytics, players } from "./collections.mjs";
 import {
   calculateDistance,
   getCount,
-  getPlayerCount,
   getPlayers,
   groupByMonths,
   groupedByDays,
@@ -345,9 +344,7 @@ router.put("/upload/:id", upload.array("files", 5), async (req, res) => {
     delete updates.size;
     delete updates.bucket;
     delete updates.timeCreated;
-    delete updates.timeUpdated;
     delete updates.signedUrl;
-    delete updates.thumbnail_src;
 
     let collection = await db.collection("media");
     let result = await collection.updateOne(
@@ -555,73 +552,58 @@ router.get("/geolocation/:id", async (req, res) => {
 });
 router.get("/geolocation/analytics/:id", async (req, res) => {
   try {
-    // let bucket = storage.bucket("geo-ads-analytics");
-    // [files] = await bucket.getFiles()
-
-    // let id = req.params.id;
-    // let result = await geoTaggedAds.findOne({ _id: new ObjectId(id) });
-    // let [files] = await bucket.getFiles();
-    // let ad;
-    // files = files.filter((file) => file.name.startsWith("geoTaggedAds"));
-    // ad = files.find((file) => file.metadata.metadata?.dbID === id);
-
-    // ad = {
-    //   ...result,
-    //   image: `https://storage.googleapis.com/tamc_advertisements/${ad.id}`,
-    //   // size: ad.metadata.size,
-    //   // bucket: ad.metadata.bucket,
-    //   timeCreated: ad.metadata.timeCreated,
-    //   timeUpdated: ad.metadata.updated,
-    // };
-
     const id = req.params.id;
-    const { from, to } = JSON.parse(req.query.dates);
+    const from = req.query.from;
+    const to = req.query.to;
+    const { geoTaggedAnalytics } = colllections;
 
-    const ad = geoTaggedAnalytics.find((ad) => ad._id === id);
+    const response = await geoTaggedAnalytics.findOne({
+      geo_id: new ObjectId(id),
+    });
 
-    if (ad) {
-      let metrics = ad.metrics;
-
-      metrics.forEach((item) => {
-        item.player_id = players[Math.floor(Math.random() * players.length)];
-      });
-
-      metrics = metrics.sort((a, b) => {
-        return new Date(a.date_logged) - new Date(b.date_logged);
-      });
-
-      let filteredMetrics = [...metrics];
-      if (from && to) {
-        filteredMetrics = metrics.filter(
-          (data) =>
-            new Date(data.date_logged) > new Date(from) &&
-            new Date(data.date_logged) < new Date(to)
-        );
-      }
-
-      const analytics = {
-        shows: metrics.length,
-        scans: getCount(metrics, "isScanned", true).length,
-        interactions: getCount(metrics, "isClosed", true).length,
-        players: getPlayerCount(metrics),
-        charts: [],
-        playerChart: await getPlayers(metrics),
-      };
-      if (from && to) {
-        const diffMonths = differenceInMonths(new Date(from), new Date(to));
-        analytics.playerChart = await getPlayers(filteredMetrics);
-        if (diffMonths < -1) {
-          analytics.charts = groupByMonths(filteredMetrics);
-        } else {
-          analytics.charts = groupedByDays(filteredMetrics);
-        }
-      } else {
-        analytics.charts = groupByMonths(metrics);
-      }
-      res.json(analytics).status(200);
-    } else {
-      res.send("No analytics found").status(400);
+    if (!response) {
+      res.status(400).send("No analytics found.");
+      return;
     }
+
+    const { metrics } = response;
+
+    const logs = metrics
+      .filter((data) => {
+        if (from && to) {
+          const dtTo = new Date(`${to}T23:59:00`);
+          return (
+            new Date(data.date) >= new Date(from) && new Date(data.date) <= dtTo
+          );
+        } else {
+          return data;
+        }
+      })
+      .sort((a, b) => {
+        return new Date(a.date) - new Date(b.date);
+      });
+
+    const players = await getPlayers(logs);
+
+    const analytics = {
+      shows: logs.length,
+      scans: getCount(logs, "isScanned"),
+      interactions: getCount(logs, "isClosed"),
+      players: players,
+      charts: [],
+    };
+    if (from && to) {
+      const dtTo = new Date(`${to}T11:59:00`);
+      const diffMonths = differenceInMonths(new Date(from), dtTo);
+      if (diffMonths < -1) {
+        analytics.charts = groupByMonths(logs);
+      } else {
+        analytics.charts = groupedByDays(logs);
+      }
+    } else {
+      analytics.charts = groupByMonths(logs);
+    }
+    res.json(analytics).status(200);
   } catch (error) {
     console.error("Error listing bucket contents:", error);
     res.status(500).send(error);
@@ -635,8 +617,13 @@ router.post("/geolocation/check-coordinates", async (req, res) => {
     if (!coords) {
       res.send("No coordinates passed").status(400);
     }
-
-    let results = await geoTaggedAds.find({}).toArray();
+    let now = new Date().toISOString();
+    let results = await geoTaggedAds
+      .find({
+        "runtime_date.from": { $lte: now },
+        "runtime_date.to": { $gte: now },
+      })
+      .toArray();
     let [files] = await bucket.getFiles();
 
     let ad = results.find((result) => {
@@ -656,9 +643,15 @@ router.post("/geolocation/check-coordinates", async (req, res) => {
       });
 
       if (file) {
+        const options = {
+          version: "v4",
+          action: "read",
+          expires: Date.now() + 60 * 60 * 1000,
+        };
+        const [signedUrl] = await bucket.file(file.name).getSignedUrl(options);
         file = {
           ...ad,
-          image: `https://storage.googleapis.com/tamc_advertisements/${file.id}`,
+          signedUrl: signedUrl,
         };
       }
       res.json(file).status(200);
@@ -677,31 +670,6 @@ router.post("/geolocation/", upload.single("file"), async (req, res) => {
     const data = JSON.parse(req.body.data);
     let result = await geoTaggedAds.insertOne(data);
 
-    // let bucket = storage.bucket("geo-ads-analytics");
-    // // Create an empty JSON file
-    // const fileNewData = bucket.file(`${result.insertedId}.json`);
-    // fileNewData.exists().then(async ([exists]) => {
-    //   if (!exists) {
-    //     const newData = JSON.stringify([]);
-    //     const streamNewData = fileNewData.createWriteStream({
-    //       metadata: {
-    //         contentType: "application/json",
-    //       },
-    //     });
-    //     streamNewData.on("error", (error) => {
-    //       res
-    //         .status(400)
-    //         .send({ error: "Error during upload", details: error });
-    //       console.error(`Error uploading ${result.insertedId}.json:`, error);
-    //     });
-    //     streamNewData.on("finish", () => {
-    //       console.log(`Empty JSON file ${result.insertedId}.json uploaded`);
-    //     });
-    //     streamNewData.end(newData);
-    //   }
-    // });
-
-    // bucket = storage.bucket("tap_ads");
     file.originalname = "geoTaggedAds/" + file.originalname;
     const fileUpload = bucket.file(file.originalname);
     const stream = fileUpload.createWriteStream({
@@ -779,5 +747,33 @@ router.put("/geolocation/:id", upload.single("file"), async (req, res) => {
     console.error("Error uploading: ", error);
     res.status(500).send(error);
   }
+});
+
+router.post("/geolocation/analytics/:id", async (req, res) => {
+  const { geoTaggedAnalytics } = colllections;
+  const id = req.params.id;
+  const data = req.body;
+
+  data.driver = new ObjectId(data.driver);
+
+  const query = { geo_id: new ObjectId(id) };
+
+  const result = await geoTaggedAnalytics.findOne(query);
+  let response = {};
+  if (result) {
+    const update = {
+      $push: {
+        metrics: data,
+      },
+    };
+    response = await geoTaggedAnalytics.updateOne(query, update);
+  } else {
+    response = await geoTaggedAnalytics.insertOne({
+      geo_id: new ObjectId(id),
+      metrics: [data],
+    });
+  }
+
+  res.status(200).send(response);
 });
 export default router;

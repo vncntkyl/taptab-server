@@ -86,6 +86,7 @@ router.post("/login", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
+
 //UPDATE USER
 router.patch("/:id", async (req, res) => {
   const userData = req.body;

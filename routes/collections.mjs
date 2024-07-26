@@ -10,6 +10,7 @@ export const colllections = {
   planner: db.collection("planner"),
   surverys: db.collection("engagements"),
   weather: db.collection("weatherAds"),
+  geoTaggedAnalytics: db.collection("geoTaggedAnalytics"),
 };
 
 export const geoTaggedAnalytics = [
@@ -1794,4 +1795,3 @@ export const players = [
   "65f28888b33bbe3d2a938ea9",
   "65f50898a77486dac749dd0a",
 ];
-

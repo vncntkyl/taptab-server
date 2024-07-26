@@ -109,10 +109,11 @@ router.post("/log/:id", async (req, res) => {
   const data = req.body;
   delete data._id;
   const updates = {
-    $set: {
+    $push: {
       last_location: {
         long: data.long,
         lat: data.lat,
+        timestamp: new Date().toISOString(),
       },
     },
   };

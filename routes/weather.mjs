@@ -18,58 +18,15 @@ const { weather } = colllections;
 router.get("/", async (req, res) => {
   const params = req.query;
   try {
-    let query = { status: { $not: { $eq: "deleted" } } };
-    let conditions = [];
-    if (Object.keys(params).length > 0) {
-      conditions.push({
-        weather: { $eq: params.weather },
-      });
-      conditions.push({
-        trigger_temperature: { $gte: params.temperature },
-      });
-      
-      query.$or = conditions;
-      // query["weather"] = { $eq: params.weather };
-      // query["temperature"] = { $eq: params.temperature };
-    }
-    // console.log(params.weather, params.temperature, JSON.stringify(query));
-    let results = await weather.find(query).toArray();
-    let [files] = await bucket.getFiles();
-    const items = [];
+    const query = buildQuery(params);
+    const results = await weather.find(query).toArray();
+    const files = await filterFiles(await bucket.getFiles());
+    const items = await buildItems(files, results);
 
-    files = files.filter((file) => file.name.startsWith("weatherAds"));
-
-    for (const file of files) {
-      if (file.metadata.contentType === "text/plain") continue;
-
-      const item = results.find((result) =>
-        result._id.equals(file.metadata.metadata.dbID)
-      );
-
-      if (item) {
-        const options = {
-          version: "v4",
-          action: "read",
-          expires: Date.now() + 60 * 60 * 1000,
-        };
-        const [signedUrl] = await bucket.file(file.name).getSignedUrl(options);
-        items.push({
-          ...item,
-          _id: file.metadata.metadata.dbID,
-          _urlID: file.id,
-          fileName: file.name,
-          timeCreated: file.metadata.timeCreated,
-          timeUpdated: file.metadata.updated,
-          signedUrl: signedUrl,
-        });
-      }
-    }
-
-    // console.log(items);
-    res.send(items).status(200);
+    res.status(200).send(items);
   } catch (error) {
-    console.error("Error fetching: ", error);
-    res.status(500).send(error);
+    console.error("Error fetching:", error);
+    res.status(500).send({ error: "Internal Server Error" });
   }
 });
 router.get("/:id", async (req, res) => {});
@@ -182,5 +139,61 @@ router.delete("/:id", async (req, res) => {
 
   res.send(result).status(200);
 });
+
+const buildQuery = (params) => {
+  let query = { status: { $ne: "deleted" } };
+  if (Object.keys(params).length > 0) {
+    query.$and = [
+      { weather: params.weather },
+      { trigger_temperature: { $lte: params.temperature } },
+    ];
+  }
+
+  return query;
+};
+
+const filterFiles = async ([files]) => {
+  return files.filter(
+    (file) =>
+      file.name.startsWith("weatherAds") &&
+      file.metadata.contentType !== "text/plain"
+  );
+};
+
+const buildItems = async (files, results) => {
+  const items = [];
+
+  for (const file of files) {
+    const result = results.find((result) =>
+      result._id.equals(file.metadata.metadata.dbID)
+    );
+
+    if (result) {
+      const signedUrl = await getSignedUrl(file);
+      items.push({
+        ...result,
+        _id: file.metadata.metadata.dbID,
+        _urlID: file.id,
+        fileName: file.name,
+        timeCreated: file.metadata.timeCreated,
+        timeUpdated: file.metadata.updated,
+        signedUrl: signedUrl,
+      });
+    }
+  }
+
+  return items;
+};
+
+const getSignedUrl = async (file) => {
+  const options = {
+    version: "v4",
+    action: "read",
+    expires: Date.now() + 60 * 60 * 1000,
+  };
+
+  const [signedUrl] = await bucket.file(file.name).getSignedUrl(options);
+  return signedUrl;
+};
 
 export default router;

@@ -22,48 +22,38 @@ function deg2rad(deg) {
   return deg * (Math.PI / 180);
 }
 
-export function getCount(metrics, key, comp) {
+export function getCount(metrics, key) {
   return metrics
-    .filter((item) => item[key] === comp)
+    .filter((item) => item[key] === true)
     .map((item) => {
       return {
-        date_logged: item.date_logged,
+        date: item.date,
         [key]: item[key],
       };
     });
 }
 
 export async function getPlayers(array = []) {
-  const uniquePlayers = [...new Set(array.map((obj) => obj.player_id))];
+  const uniquePlayers = [...new Set(array.map((obj) => obj.driver.toString()))];
 
   const players = await Promise.all(
     uniquePlayers.map(async (player) => {
       const playerInfo = await getPlayer(player);
       return {
-        player: playerInfo?.device_name || "Anon",
-        passed_by: array.filter((item) => item.player_id === player).length,
+        player: playerInfo?.device_name || "N/A",
+        passed_by: array.filter((item) => item.driver.toString() === player)
+          .length,
       };
     })
   );
 
   return players;
 }
-export function getPlayerCount(array = []) {
-  const uniquePlayers = [...new Set(array.map((obj) => obj.player_id))];
-
-  uniquePlayers.map((player) => {
-    return {
-      passed_by: array.filter((item) => item.player_id === player).length,
-    };
-  });
-
-  return uniquePlayers.length;
-}
 
 export const groupedByDays = (array) => {
   const groupedDays = array.reduce((acc, obj) => {
-    delete obj.player_id;
-    const date = new Date(obj.date_logged);
+    delete obj.driver;
+    const date = new Date(obj.date);
     acc[date.toLocaleDateString()] = acc[date.toLocaleDateString()] || [];
     acc[date.toLocaleDateString()].push(obj);
     return acc;
@@ -83,8 +73,8 @@ export const groupedByDays = (array) => {
 
 export const groupByMonths = (array) => {
   const monthly = array.reduce((acc, obj) => {
-    delete obj.player_id;
-    const date = new Date(obj.date_logged);
+    delete obj.driver;
+    const date = new Date(obj.date);
     const year = date.getFullYear();
     const month = date.toLocaleString("en-US", { month: "long" });
     const key = `${month} ${year}`; // Combine month and year into one key

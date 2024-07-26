@@ -34,9 +34,11 @@ router.get("/", async (req, res) => {
           "planner",
           "playlist",
           "engagements",
+          "staticAnalytics",
           "analytics",
           "geoTaggedAds",
-          "weatherAds"
+          "geoTaggedAnalytics",
+          "weatherAds",
         ].includes(key)
       ) {
         size.push({ [key]: documents });
@@ -59,7 +61,6 @@ router.get("/", async (req, res) => {
     res.status(500).send("Server Error");
   }
 });
-
 
 //truncate the system
 router.delete("/", async (req, res) => {
